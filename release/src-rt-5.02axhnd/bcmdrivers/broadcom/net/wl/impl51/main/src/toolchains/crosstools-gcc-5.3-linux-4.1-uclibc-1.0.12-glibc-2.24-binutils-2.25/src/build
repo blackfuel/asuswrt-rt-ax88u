@@ -1,0 +1,116 @@
+#!/bin/sh
+
+#check env variable are set and exported by top level makefile
+if [ -z "$BR_VER" ] || [ -z "$LINUX_VER" ] || [ -z "$GCC_VER" ] || [ -z "$BINUTILS_VER" ] || [ -z "$TOOLCHAIN_TOP" ] || [ -z "$ARCH" ] || [ -z "$MIPS_LIBC" ] || [ -z "$MIPS_LIBC_VER" ] || [ -z "$ARM_LIBC" ] || [ -z "$ARM_LIBC_VER" ] || [ -z "$AARCH64_LIBC" ] || [ -z "$AARCH64_LIBC_VER" ]; then
+   echo "one or more variables are not set or exported by the top level makefile."
+   echo "BR_VER $BR_VER"
+   echo "LINUX_VER $LINUX_VER"
+   echo "GCC_VER $GCC_VER"
+   echo "BINUTILS_VER $BINUTILS_VER"
+   echo "TOOLCHAIN_TOP $TOOLCHAIN_TOP"
+   echo "ARCH $ARCH"
+   echo "MIPS_LIBC $MIPS_LIBC" 
+   echo "MIPS_LIBC_VER $MIPS_LIBC_VER" 
+   echo "ARM_LIBC $ARM_LIBC" 
+   echo "ARM_LIBC_VER $ARM_LIBC_VER" 
+   echo "AARCH64_LIBC $AARCH64_LIBC" 
+   echo "AARCH64_LIBC_VER $AARCH64_LIBC_VER"
+   exit 1
+fi
+
+#target dirtory validation functin 
+function validate_target_dir() {
+   if [ -d "$1" ] && [ "$(ls -A $1)" ]; then
+       echo "$1 already has a toolchain installed.  Please delete the old toolchain before continuing."
+       exit 1
+   elif [ -d "$1" ] && [ ! -w "$1" ]; then
+       echo "$1 exist but are not writeable. Please fix."
+       exit 1
+   elif [ ! -d "$1" ]; then
+       mkdir "$1"
+       if [ $? -ne 0 ]; then
+           echo "$1 do not exists and can't be created, please make sure /opt/toolchains exists and it is writeable."
+           exit 1
+       fi
+   fi
+}
+
+#build toolchain for a particular target
+function build_toolchain() {
+    echo "################### Build $1 toolchain #####################"
+    cd $buildhome
+    # get the config file
+    cat ../$1.buildroot.$3.config > .config
+    if [ "$3" = "uclibc" ] ; then
+       cat ../$1.uclibc-$4.brcm.config > ./package/uclibc/uclibc-$4.brcm.config
+    fi
+    make clean
+    make 
+    if [ $? -eq 0 ];then
+       cd "$2"
+       ln -s ./usr/$5/sysroot/lib ./lib
+       if [ ! -d "./usr/$5/target_utils" ]; then
+           mkdir ./usr/$5/target_utils
+       fi
+       cp $buildhome/output/target/usr/bin/gdbserver ./usr/$5/target_utils
+       echo "$1 toolchain build succeeded!"
+    else
+       echo "$1 toolchain built failed"
+       exit 1 
+    fi
+}
+
+TARGET_AARCH64=$TOOLCHAIN_TOP/crosstools-aarch64-gcc-$GCC_VER-linux-$LINUX_VER-$AARCH64_LIBC-$AARCH64_LIBC_VER-binutils-$BINUTILS_VER
+if [ "$ARM_LIBC" = "glibc" ] ; then
+    TARGET_ARM=$TOOLCHAIN_TOP/crosstools-arm-gcc-$GCC_VER-linux-$LINUX_VER-$ARM_LIBC-$ARM_LIBC_VER-binutils-$BINUTILS_VER
+else
+    TARGET_ARM=$TOOLCHAIN_TOP/crosstools-arm-gcc-$GCC_VER-linux-$LINUX_VER-$ARM_LIBC-$ARM_LIBC_VER-binutils-$BINUTILS_VER-NPTL
+fi
+TARGET_MIPS=$TOOLCHAIN_TOP/crosstools-mips-gcc-$GCC_VER-linux-$LINUX_VER-$MIPS_LIBC-$MIPS_LIBC_VER-binutils-$BINUTILS_VER-NPTL
+TARGET_MIPSEL=$TOOLCHAIN_TOP/crosstools-mipsel-gcc-$GCC_VER-linux-$LINUX_VER-$MIPS_LIBC-$MIPS_LIBC_VER-binutils-$BINUTILS_VER-NPTL
+
+cd ./buildroot-$BR_VER
+buildhome=`pwd`
+
+# build the mips toolchain first 
+if [ "$ARCH" = "mips" ] || [ "$ARCH" = "all" ]; then
+    if [ "$MIPS_LIBC" = "glibc" ] ; then
+	     echo "glibc builds for MIPS are currently disabled in build script"
+    else
+        validate_target_dir "$TARGET_MIPS"
+        build_toolchain "mips" "$TARGET_MIPS" "$MIPS_LIBC" "$MIPS_LIBC_VER" "mips-buildroot-linux-uclibc"
+    fi
+fi
+
+# build the arm toolchain now
+if [ "$ARCH" = "arm" ] || [ "$ARCH" = "all" ]; then
+        validate_target_dir "$TARGET_ARM"
+    if [ "$ARM_LIBC" = "glibc" ] ; then
+        build_toolchain "arm" "$TARGET_ARM" "$ARM_LIBC" "$ARM_LIBC_VER" "arm-buildroot-linux-gnueabi"
+    else    
+        build_toolchain "arm" "$TARGET_ARM" "$ARM_LIBC" "$ARM_LIBC_VER" "arm-buildroot-linux-uclibcgnueabi"
+    fi
+fi
+
+# build the aarch64 toolchain now
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "all" ]; then
+    if [ "$AARCH64_LIBC" = "glibc" ] ; then
+        validate_target_dir "$TARGET_AARCH64"
+        build_toolchain "aarch64" "$TARGET_AARCH64" "$AARCH64_LIBC" "$AARCH64_LIBC_VER" "aarch64-buildroot-linux-gnu"
+    else
+	     echo "uClibc does not support AARCH64"
+    fi
+fi
+
+if [ "$ARCH" = "mipsel" ] || [ "$ARCH" = "all" ]; then
+    if [ "$MIPS_LIBC" = "glibc" ] ; then
+	     echo "glibc builds for MIPS are currently disabled in build script"
+    else        
+        validate_target_dir "$TARGET_MIPSEL"
+        build_toolchain "mipsel" "$TARGET_MIPSEL" "$MIPS_LIBC" "$MIPS_LIBC_VER" "mipsel-buildroot-linux-uclibc"
+    fi
+fi
+
+cd $buildhome
+cd ..
+	

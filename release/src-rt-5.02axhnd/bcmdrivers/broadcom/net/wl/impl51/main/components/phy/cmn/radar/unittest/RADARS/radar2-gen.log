@@ -1,0 +1,148 @@
+# $ Copyright Broadcom Corporation $
+#
+#
+# <<Broadcom-WL-IPTag/Proprietary:.*>>
+#
+# $Id$
+RADAR SPECS(CSV FORMAT),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+radar, ,PW,,,  ,PRI,,, ,NP,,,  ,PRNP,,,  ,FM,,,  ,BRI,,,
+     , min,mid,max,,min,mid,max,,min,mid,max,,min,mid,max,,min,mid,max,,min,mid,max,,
+etsi-1,0.8,1,5.0,,5000.0,1666.0,1000.0,,,15,,,-,-,-,,-,-,-,,-,-,-,,
+etsi-2,0.8,8,15,,5000.0,1111.0,625.0,,,10,,,-,-,-,,-,-,-,,-,-,-,,
+etsi-3,0.8,8,15,,434.0,317.0,250.0,,,25,,,-,-,-,,-,-,-,,-,-,-,,
+etsi-4,20,25,30,,500.0,333.0,250.0,,,20,,,-,-,-,,-,510,-,,-,-,-,,
+etsi-5-2aabb,0.8,1.4,2,, 3333.  3225., 2941.  2777., 2500.  2564.,,,10,,,-,2; 'seq',-,,-,-,-,,-,-,-,,
+etsi-5-2abab,0.8,1.4,2,, 3333.  3225., 2941.  2777., 2500.  2564.,,,10,,,-,2; 'alt',-,,-,-,-,,-,-,-,,
+etsi-5-3aabb,0.8,1.4,2,, 3333.  3225.  3125., 3030.  2857.  2702., 2500.  2564.  2631.,,,10,,,-,3; 'seq',-,,-,-,-,,-,-,-,,
+etsi-5-3abab,0.8,1.4,2,, 3333.  3225.  3125., 3030.  2857.  2702., 2500.  2564.  2631.,,,10,,,-,3; 'alt',-,,-,-,-,,-,-,-,,
+etsi-6-2aabb,0.8,1.4,2,, 2500.  2439., 1315.  1190., 833.  840.,,,15,,,-,2; 'seq',-,,-,-,-,,-,-,-,,
+etsi-6-2abab,0.8,1.4,2,, 2500.  2439., 1315.  1190., 833.  840.,,,15,,,-,2; 'alt',-,,-,-,-,,-,-,-,,
+etsi-6-3aabb,0.8,1.4,2,, 2500.  2439.  2380., 1388.  1250.  1136., 833.  840.  847.,,,15,,,-,3; 'seq',-,,-,-,-,,-,-,-,,
+etsi-6-3abab,0.8,1.4,2,, 2500.  2439.  2380., 1388.  1250.  1136., 833.  840.  847.,,,15,,,-,3; 'alt',-,,-,-,-,,-,-,-,,
+etsi-prf-not,-,0.5,-,,-,140,-,,-,20,-,,-,-,-,,-,-,-,,-,-,-,,
+etsi-stag2-not,-,0.5; 0.7,-,,-,50; 70,-,,-,5,-,,-,2; 'alt',-,,-,-,-,,-,-,-,,
+etsi-stag3-not,-,0.5; 0.7; 0.6,-,,-,50; 70; 90,-,,-,5,-,,-,3; 'alt',-,,-,-,-,,-,-,-,,
+fcc-0,,1,,,,1428,,,,18,,,-,-,-,,-,-,-,,-,-,-,,
+fcc-1,,1,,,,738,,,,72.0,,,-,-,-,,-,-,-,,-,-,-,,
+fcc-2,1,3,5,,150,190.0,230,,23,26,29,,-,-,-,,-,-,-,,-,-,-,,
+fcc-3,6,8,10,,200,350.0,500,,16,17,18,,-,-,-,,-,-,-,,-,-,-,,
+fcc-4,11,16,20,,200,350.0,500,,12,14,16,,-,-,-,,-,-,-,,-,-,-,,
+fcc-5,50,75,100,,1000,1500,2000,,1; 2,3,2; 3,,-,-,-,,-,510,-,,-,600000,-,,
+fcc-not,-,0.5,-,,-,50,-,,-,20,-,,-,-,-,,-,-,-,,-,-,-,,
+jp-1-1,,1.0,,,,1428,,,,18,,,-,-,-,,-,-,-,,-,-,-,,
+jp-1-2,,2.5,,,,3846,,,,18,,,-,-,-,,-,-,-,,-,-,-,,
+jp-2-1-1,,0.5,,,,1388,,,,18,,,-,-,-,,-,-,-,,-,-,-,,
+jp-2-1-2,,2.0,,,,4000,,,,18,,,-,-,-,,-,-,-,,-,-,-,,
+jp-2-2-1,,1.0,,,,1428,,,,18,,,-,-,-,,-,-,-,,-,-,-,,
+jp-2-2-2,1.0,3.0,5.0,,150,200,229,,23,26,29,,-,-,-,,-,-,-,,-,-,-,,
+jp-2-2-3,6.0,8.0,10.0,,250,333,500,,16,17,18,,-,-,-,,-,-,-,,-,-,-,,
+jp-2-2-4,11.0,15.5,20.0,,250,333,500,,12,14,16,,-,-,-,,-,-,-,,-,-,-,,
+jp-3-1,50.0,75,100.0,,1000,1333,2000,,1; 2,3,2; 3,,-,-,-,,-,510,-,,-,600000,-,,
+jp-4-1,,1.0,,,,333,,,,9,,,-,-,-,,-,-,-,,-,3000.0,-,,
+jp-not,-,150,-,,-,10000,-,,-,5,-,,-,-,-,,-,-,-,,-,-,-,,
+kor-1,,1,,,,1428,,,,18,,,-,-,-,,-,-,-,,-,-,-,,
+kor-2,,1,,,,556,,,,10,,,-,-,-,,-,-,-,,-,-,-,,
+kor-3,,2,,,,3030,,,,70,,,-,-,-,,-,-,-,,-,600000,-,,
+kor-4,,1,,,,333,,,,0; 0; 0; 3,,,-,-,-,,-,-,-,,-,-,-,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+Skipped corner 'max' as no valid case for radar 'fcc-0'
+Skipped corner 'min' as no valid case for radar 'fcc-0'
+Skipped corner 'max' as no valid case for radar 'fcc-1'
+Skipped corner 'min' as no valid case for radar 'fcc-1'
+Skipped corner 'max' as no valid case for radar 'jp-1-1'
+Skipped corner 'min' as no valid case for radar 'jp-1-1'
+Skipped corner 'max' as no valid case for radar 'jp-1-2'
+Skipped corner 'min' as no valid case for radar 'jp-1-2'
+Skipped corner 'max' as no valid case for radar 'jp-2-1-1'
+Skipped corner 'min' as no valid case for radar 'jp-2-1-1'
+Skipped corner 'max' as no valid case for radar 'jp-2-1-2'
+Skipped corner 'min' as no valid case for radar 'jp-2-1-2'
+Skipped corner 'max' as no valid case for radar 'jp-2-2-1'
+Skipped corner 'min' as no valid case for radar 'jp-2-2-1'
+Skipped corner 'max' as no valid case for radar 'jp-4-1'
+Skipped corner 'min' as no valid case for radar 'jp-4-1'
+Skipped corner 'max' as no valid case for radar 'kor-1'
+Skipped corner 'min' as no valid case for radar 'kor-1'
+Skipped corner 'max' as no valid case for radar 'kor-2'
+Skipped corner 'min' as no valid case for radar 'kor-2'
+Skipped corner 'max' as no valid case for radar 'kor-3'
+Skipped corner 'min' as no valid case for radar 'kor-3'
+Skipped corner 'max' as no valid case for radar 'kor-4'
+Skipped corner 'min' as no valid case for radar 'kor-4'
+etsi-1 {'NP': [15], 'PRI': array([ 1666.]), 'PW': [1]}
+etsi-2 {'NP': [10], 'PRI': array([ 1111.]), 'PW': [8]}
+etsi-3 {'NP': [25], 'PRI': array([ 317.]), 'PW': [8]}
+etsi-4 {'NP': [20], 'PRI': array([ 333.]), 'PW': [25], 'FM': [510]}
+etsi-5-2aabb {'NP': [10], 'PRI': array([ 2941.,  2777.]), 'PRNP': (2, 'seq'), 'PW': [1.4]}
+etsi-5-2abab {'NP': [10], 'PRI': array([ 2941.,  2777.]), 'PRNP': (2, 'alt'), 'PW': [1.4]}
+etsi-5-3aabb {'NP': [10], 'PRI': array([ 3030.,  2857.,  2702.]), 'PRNP': (3, 'seq'), 'PW': [1.4]}
+etsi-5-3abab {'NP': [10], 'PRI': array([ 3030.,  2857.,  2702.]), 'PRNP': (3, 'alt'), 'PW': [1.4]}
+etsi-6-2aabb {'NP': [15], 'PRI': array([ 1315.,  1190.]), 'PRNP': (2, 'seq'), 'PW': [1.4]}
+etsi-6-2abab {'NP': [15], 'PRI': array([ 1315.,  1190.]), 'PRNP': (2, 'alt'), 'PW': [1.4]}
+etsi-6-3aabb {'NP': [15], 'PRI': array([ 1388.,  1250.,  1136.]), 'PRNP': (3, 'seq'), 'PW': [1.4]}
+etsi-6-3abab {'NP': [15], 'PRI': array([ 1388.,  1250.,  1136.]), 'PRNP': (3, 'alt'), 'PW': [1.4]}
+etsi-prf-not {'NP': [20], 'PRI': [140], 'PW': [0.5]}
+etsi-stag2-not {'NP': [5], 'PRI': [50, 70], 'PRNP': (2, 'alt'), 'PW': [0.5, 0.7]}
+etsi-stag3-not {'NP': [5], 'PRI': [50, 70, 90], 'PRNP': (3, 'alt'), 'PW': [0.5, 0.7, 0.6]}
+fcc-0 {'NP': [18], 'PRI': [1428], 'PW': [1]}
+fcc-1 {'NP': array([ 72.]), 'PRI': array([738]), 'PW': [1]}
+fcc-2 {'NP': [26], 'PRI': [190.0], 'PW': [3]}
+fcc-3 {'NP': [17], 'PRI': [350.0], 'PW': [8]}
+fcc-4 {'NP': [14], 'PRI': [350.0], 'PW': [16]}
+fcc-5 {'NP': [3], 'PRI': [1500], 'PW': [75], 'BRI': [600000], 'FM': [510]}
+fcc-not {'NP': [20], 'PRI': [50], 'PW': [0.5]}
+jp-1-1 {'NP': [18], 'PRI': [1428], 'PW': [1.0]}
+jp-1-2 {'NP': [18], 'PRI': [3846], 'PW': [2.5]}
+jp-2-1-1 {'NP': [18], 'PRI': [1388], 'PW': [0.5]}
+jp-2-1-2 {'NP': [18], 'PRI': [4000], 'PW': [2.0]}
+jp-2-2-1 {'NP': [18], 'PRI': [1428], 'PW': [1.0]}
+jp-2-2-2 {'NP': [26], 'PRI': [200], 'PW': [3.0]}
+jp-2-2-3 {'NP': [17], 'PRI': [333], 'PW': [8.0]}
+jp-2-2-4 {'NP': [14], 'PRI': [333], 'PW': [15.5]}
+jp-3-1 {'NP': [3], 'PRI': [1333], 'PW': [75], 'BRI': [600000], 'FM': [510]}
+jp-4-1 {'NP': [9], 'PRI': [333], 'PW': [1.0], 'BRI': [3000.0]}
+jp-not {'NP': [5], 'PRI': [10000], 'PW': [150]}
+kor-1 {'NP': [18], 'PRI': [1428], 'PW': [1]}
+kor-2 {'NP': [10], 'PRI': [556], 'PW': [1]}
+kor-3 {'NP': [70], 'PRI': [3030], 'PW': [2], 'BRI': [600000]}
+kor-4 {'NP': [0, 0, 0, 3], 'PRI': [333], 'PW': [1]}
+zcorner-max-etsi-1 {'NP': [15], 'PRI': [5000.0], 'PW': [5.0]}
+zcorner-max-etsi-2 {'NP': [10], 'PRI': [5000.0], 'PW': [15]}
+zcorner-max-etsi-3 {'NP': [25], 'PRI': [434.0], 'PW': [15]}
+zcorner-max-etsi-4 {'NP': [20], 'PRI': [500.0], 'PW': [30], 'FM': [510]}
+zcorner-max-etsi-5-2aabb {'NP': [10], 'PRI': array([ 3333.,  3225.]), 'PRNP': (2, 'seq'), 'PW': [2]}
+zcorner-max-etsi-5-2abab {'NP': [10], 'PRI': array([ 3333.,  3225.]), 'PRNP': (2, 'alt'), 'PW': [2]}
+zcorner-max-etsi-5-3aabb {'NP': [10], 'PRI': array([ 3333.,  3225.,  3125.]), 'PRNP': (3, 'seq'), 'PW': [2]}
+zcorner-max-etsi-5-3abab {'NP': [10], 'PRI': array([ 3333.,  3225.,  3125.]), 'PRNP': (3, 'alt'), 'PW': [2]}
+zcorner-max-etsi-6-2aabb {'NP': [15], 'PRI': array([ 2500.,  2439.]), 'PRNP': (2, 'seq'), 'PW': [2]}
+zcorner-max-etsi-6-2abab {'NP': [15], 'PRI': array([ 2500.,  2439.]), 'PRNP': (2, 'alt'), 'PW': [2]}
+zcorner-max-etsi-6-3aabb {'NP': [15], 'PRI': array([ 2500.,  2439.,  2380.]), 'PRNP': (3, 'seq'), 'PW': [2]}
+zcorner-max-etsi-6-3abab {'NP': [15], 'PRI': array([ 2500.,  2439.,  2380.]), 'PRNP': (3, 'alt'), 'PW': [2]}
+zcorner-max-fcc-2 {'NP': [23], 'PRI': [150], 'PW': [5]}
+zcorner-max-fcc-3 {'NP': [16], 'PRI': [200], 'PW': [10]}
+zcorner-max-fcc-4 {'NP': [12], 'PRI': [200], 'PW': [20]}
+zcorner-max-fcc-5 {'NP': [1, 2], 'PRI': [1000], 'PW': [100], 'BRI': [600000], 'FM': [510]}
+zcorner-max-jp-2-2-2 {'NP': [23], 'PRI': [150], 'PW': [5.0]}
+zcorner-max-jp-2-2-3 {'NP': [16], 'PRI': [250], 'PW': [10.0]}
+zcorner-max-jp-2-2-4 {'NP': [12], 'PRI': [250], 'PW': [20.0]}
+zcorner-max-jp-3-1 {'NP': [1, 2], 'PRI': [1000], 'PW': [100.0], 'BRI': [600000], 'FM': [510]}
+zcorner-min-etsi-1 {'NP': [15], 'PRI': [1000.0], 'PW': [5.0]}
+zcorner-min-etsi-2 {'NP': [10], 'PRI': [625.0], 'PW': [15]}
+zcorner-min-etsi-3 {'NP': [25], 'PRI': [250.0], 'PW': [15]}
+zcorner-min-etsi-4 {'NP': [20], 'PRI': [250.0], 'PW': [30], 'FM': [510]}
+zcorner-min-etsi-5-2aabb {'NP': [10], 'PRI': array([ 2500.,  2564.]), 'PRNP': (2, 'seq'), 'PW': [2]}
+zcorner-min-etsi-5-2abab {'NP': [10], 'PRI': array([ 2500.,  2564.]), 'PRNP': (2, 'alt'), 'PW': [2]}
+zcorner-min-etsi-5-3aabb {'NP': [10], 'PRI': array([ 2500.,  2564.,  2631.]), 'PRNP': (3, 'seq'), 'PW': [2]}
+zcorner-min-etsi-5-3abab {'NP': [10], 'PRI': array([ 2500.,  2564.,  2631.]), 'PRNP': (3, 'alt'), 'PW': [2]}
+zcorner-min-etsi-6-2aabb {'NP': [15], 'PRI': array([ 833.,  840.]), 'PRNP': (2, 'seq'), 'PW': [2]}
+zcorner-min-etsi-6-2abab {'NP': [15], 'PRI': array([ 833.,  840.]), 'PRNP': (2, 'alt'), 'PW': [2]}
+zcorner-min-etsi-6-3aabb {'NP': [15], 'PRI': array([ 833.,  840.,  847.]), 'PRNP': (3, 'seq'), 'PW': [2]}
+zcorner-min-etsi-6-3abab {'NP': [15], 'PRI': array([ 833.,  840.,  847.]), 'PRNP': (3, 'alt'), 'PW': [2]}
+zcorner-min-fcc-2 {'NP': [23], 'PRI': [230], 'PW': [5]}
+zcorner-min-fcc-3 {'NP': [16], 'PRI': [500], 'PW': [10]}
+zcorner-min-fcc-4 {'NP': [12], 'PRI': [500], 'PW': [20]}
+zcorner-min-fcc-5 {'NP': [1, 2], 'PRI': [2000], 'PW': [100], 'BRI': [600000], 'FM': [510]}
+zcorner-min-jp-2-2-2 {'NP': [23], 'PRI': [229], 'PW': [5.0]}
+zcorner-min-jp-2-2-3 {'NP': [16], 'PRI': [500], 'PW': [10.0]}
+zcorner-min-jp-2-2-4 {'NP': [12], 'PRI': [500], 'PW': [20.0]}
+zcorner-min-jp-3-1 {'NP': [1, 2], 'PRI': [2000], 'PW': [100.0], 'BRI': [600000], 'FM': [510]}

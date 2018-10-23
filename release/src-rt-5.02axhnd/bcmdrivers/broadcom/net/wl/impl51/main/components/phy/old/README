@@ -1,0 +1,41 @@
+/*
+ * Copyright (C) 2018, Broadcom. All Rights Reserved.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ *
+ * <<Broadcom-WL-IPTag/Proprietary:.*>>
+ *
+ * $Id: README 596416 2015-10-31 13:19:52Z $
+ *
+*/
+
+Broadcom BCM43XX 802.11 wireless device driver PHY MODULE source directory.
+This is created in May 2009 from top of tree. These files used to under wl/sys directory
+
+- "dot11" core hardware definitions are in d11.h
+- 802.11 protocol definitions are in proto/802.11.h
+- driver internal definitions shared between common code and PHY modules
+ are in wlc_bmac.h wlc_phy_shim.h
+
+Naming conventions:
+The PHY driver prefix is "wlc_phy" .
+The common PHY module file is wlc_phy_cmn.c
+The specific PHYTYPE dependent files are wlc_phy_xx.c
+Registers are wlc_phyreg_xx.h
+Tables are wlc_phytbl_xx.[ch]
+	many new files are resulted from file split or being moved from other directory like phy/radio register definitions
+
+Interface:
+wlc_phy_hal.h is the external interface.
+wlc_phy_int.h is the internal shared interface.
