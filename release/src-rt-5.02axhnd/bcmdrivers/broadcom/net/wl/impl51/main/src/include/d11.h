@@ -46,7 +46,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: d11.h 765788 2018-07-16 21:44:42Z $
+ * $Id: d11.h 767725 2018-09-25 01:10:34Z $
  */
 
 #ifndef	_D11_H
@@ -894,7 +894,7 @@ BWL_PRE_PACKED_STRUCT struct d11txh_pre40 {
 #define TXFID_FIFO_MASK		0x001F		/* TX FIFO index */
 #define TXFID_SEQ_MASK		0x7F00		/* Frame sequence number */
 #define TXFID_SEQ_SHIFT		8		/* Frame sequence number shifts */
-#define TXFID_MAX_BCMC_FID	((TXFID_SEQ_MASK >> TXFID_SEQ_SHIFT)) /* 128 */
+#define TXFID_MAX_BCMC_FID	((TXFID_SEQ_MASK >> TXFID_SEQ_SHIFT)+1) /* 128 */
 #define	TXFID_RATE_PROBE_MASK	0x8000		/* Rate probe */
 #define TXFID_RATE_MASK		0x00E0		/* Rate mask */
 #define TXFID_RATE_SHIFT	5		/* Rate shifts */
@@ -1007,6 +1007,52 @@ BWL_PRE_PACKED_STRUCT struct d11actxh {
 
 	};
 
+#ifdef WL_EAP_UCODE_TX_DESC
+	/* Extend the Tx Descriptor by 48 bytes for EAP */
+#ifdef WL_EAP_RTS_OVERRIDE
+	d11actxh_rts_override_t rts;        /* 124 - 131 */
+#else
+	uint8   Pad0[8];
+#endif // endif
+
+#ifdef WL_EAP_SAS
+	d11actxh_sas_t sas;                 /* 132 - 139 */
+#else
+	uint8   Pad1[8];
+#endif // endif
+
+	/* Bitfield used by EAP features */
+	uint16  wlent_flags;                /* 140 - 141 */
+
+#ifdef WL_EAP_PER_PKT_SOUND_PERIOD
+	uint16  sounding_period;            /* 142 - 143 */
+#else
+	uint16  Pad2;
+#endif // endif
+
+#ifdef WL_EAP_DESC_KEY
+	/* Encryption key for hw to use to encrypt outgoing frame */
+	/* Unfortunately, DOT11_MAX_KEY_SIZE is 32 */
+	uint8 key[16];                      /* 144 - 159 */
+#else
+	uint8 Pad3[16];
+#endif // endif
+
+#ifdef WL_EAP_PER_PKT_RTX
+	/* Retry and fallback limits */
+	d11actxh_per_pkt_rtx_t rtx;         /* 160 - 167 */
+#else
+	uint8 Pad4[8];
+#endif // endif
+
+#ifdef WL_EAP_TXQ_PRUNING
+	/* TXQ flow ID to be used as bit position in ucode bitmap */
+	uint16 txq_flowid;                  /* 168 - 169 */
+	uint16 Reserved2;                   /* 170 - 171 */
+#else
+	uint32 Pad5;
+#endif // endif
+#endif /* WL_EAP_UCODE_TX_DESC */
 } BWL_POST_PACKED_STRUCT;
 
 #define D11AC_TXH_LEN		sizeof(d11actxh_t)	/* 124 bytes */
@@ -1376,6 +1422,52 @@ BWL_PRE_PACKED_STRUCT struct d11pktinfo_rev128 {
 	uint16  BcnTargetTxTime;		/* 26. NAN: beacon target tx time. */
 	uint16	reserved[2];			/* 28-31. Not used */
 
+#ifdef WL_EAP_UCODE_TX_DESC
+	/* Extend the Tx Descriptor by 48 bytes for EAP */
+#ifdef WL_EAP_RTS_OVERRIDE
+	d11actxh_rts_override_t rts;        /* 124 - 131 */
+#else
+	uint8   Pad0[8];
+#endif // endif
+
+#ifdef WL_EAP_SAS
+	d11actxh_sas_t sas;                 /* 132 - 139 */
+#else
+	uint8   Pad1[8];
+#endif // endif
+
+	/* Bitfield used by EAP features */
+	uint16  wlent_flags;                /* 140 - 141 */
+
+#ifdef WL_EAP_PER_PKT_SOUND_PERIOD
+	uint16  sounding_period;            /* 142 - 143 */
+#else
+	uint16  Pad2;
+#endif // endif
+
+#ifdef WL_EAP_DESC_KEY
+	/* Encryption key for hw to use to encrypt outgoing frame */
+	/* Unfortunately, DOT11_MAX_KEY_SIZE is 32 */
+	uint8 key[16];                      /* 144 - 159 */
+#else
+	uint8 Pad3[16];
+#endif // endif
+
+#ifdef WL_EAP_PER_PKT_RTX
+	/* Retry and fallback limits */
+	d11actxh_per_pkt_rtx_t rtx;         /* 160 - 167 */
+#else
+	uint8 Pad4[8];
+#endif // endif
+
+#ifdef WL_EAP_TXQ_PRUNING
+	/* TXQ flow ID to be used as bit position in ucode bitmap */
+	uint16 txq_flowid;                  /* 168 - 169 */
+	uint16 Reserved2;                   /* 170 - 171 */
+#else
+	uint32 Pad5;
+#endif // endif
+#endif /* WL_EAP_UCODE_TX_DESC */
 } BWL_POST_PACKED_STRUCT;
 
 #define D11_REV128_TXH_LEN			sizeof(d11txh_rev128_t)	/* 32 bytes */
@@ -1405,6 +1497,7 @@ BWL_PRE_PACKED_STRUCT struct d11linkmem_ptid {
 /** LinkMem entry for LinkMem table (new in corerev 128) */
 typedef struct d11linkmem_entry d11linkmem_entry_t;
 BWL_PRE_PACKED_STRUCT struct d11linkmem_entry {
+	/* first part is shared with/written by all of SW and consumed by ucode */
 	uint8               BssIdx;            /* 5 bits P2P/MBSS BssIdx */
 	uint8               BssColor;          /* 6 bits */
 	uint16              StaID_IsAP;        /* 12 bits AID, bit15=IsAP */
@@ -1424,10 +1517,13 @@ BWL_PRE_PACKED_STRUCT struct d11linkmem_entry {
 	uint16              fragTx;		/* frag tx params */
 	uint16              BFIConfig0;		/* 3 bits bfenss, 3 bits bfrnss, 8 bits BFIIdx */
 	uint16              BFIConfig1;		/* 8 bits bfecap, 8 bits bfrcap */
+	/* next part is ucode internal data initted by SW, maintained by ucode */
 	uint16              BFRStat0;		/* Ucode internal */
 	uint16              BFRStat1;		/* Ucode internal */
 	uint16              BFRStat2;		/* Ucode internal */
 	uint16              BFRStat3;		/* Ucode internal */
+	/* another 32 bytes reserved exclusively for ucode usage */
+	// uint8 RESERVED[32]; /* not defined to reserve SW memory */
 } BWL_POST_PACKED_STRUCT;
 
 #define D11_REV128_RATEENTRY_NUM_RATES			4 /* primary + 3 fallback rates */
@@ -1472,8 +1568,8 @@ BWL_PRE_PACKED_STRUCT struct d11ratemem_rev128_rate {
 /** RateMem entry for RateMem table (new in corerev 128) */
 typedef struct d11ratemem_rev128_entry d11ratemem_rev128_entry_t;
 BWL_PRE_PACKED_STRUCT struct d11ratemem_rev128_entry {
-	uint8                      flags;   /* flags: (probe | epoch | cnt) */
-	uint8                      reserved[3];
+	uint16                     flags;   /* flags: (ldpc | probe | epoch | cnt) */
+	uint8                      reserved[2];
 	/* Rate info for primary and 3 fallback rates */
 	d11ratemem_rev128_rate_t   rate_info_block[D11_REV128_RATEENTRY_NUM_RATES];
 	d11ratemem_rev128_rate_t   rate_info_block_tpl; /* Rsrvd for ucode. E.g. MU-mimo/OFDMA. */
@@ -1481,15 +1577,19 @@ BWL_PRE_PACKED_STRUCT struct d11ratemem_rev128_entry {
 } BWL_POST_PACKED_STRUCT;
 
 /* rtflags (rate_flags) format:
+ * bit  8  : LDPC cap flag
  * bit  7  : RATE PROBE flag
  * bits 6:4: RATE_EPOCH maintained by ratesel module
  * bits 3:0: rmem_nupd
  */
+#define D11_REV128_RATE_LDPC_FLAG		0x100
 #define D11_REV128_RATE_PROBE_FLAG		0x80
 #define D11_REV128_RATE_EPOCH_MASK		0x70
 #define D11_REV128_RATE_EPOCH_SHIFT		4
 #define D11_REV128_RATE_NUPD_MASK		0x0F
 #define D11_REV128_RATE_NUPD_SHIFT		0
+#define D11_REV128_RATE_TXS_MASK		\
+	(D11_REV128_RATE_NUPD_MASK | D11_REV128_RATE_EPOCH_MASK | D11_REV128_RATE_PROBE_FLAG)
 #define D11_RATEENTRY_IS_PROBE(rate_entry)	(((rate_entry) != NULL) && \
 	(((rate_entry)->epoch & D11_REV128_RATE_PROBE_FLAG) != 0))
 #define D11_REV128_PPETX_MASK			0x00FFFFFF
@@ -1828,6 +1928,12 @@ enum  {
 #define AMT_SIZE_256		256 /* number of AMT entries for corerev >= 128 */
 #define AMT_IDX_MAC		63	/**< device MAC */
 #define AMT_IDX_BSSID		62	/**< BSSID match */
+
+/* In case of Ratelinkmem */
+#define AMT_IDX_RSVD_SIZE_MIN  8       /**< reserve 248-255 rate entries for ucode and */
+/**< these indexes are also used for Virtual BSS linkmem */
+#define AMT_IDX_RSVD_SIZE      (MAX(AMT_IDX_RSVD_SIZE_MIN, WLC_MAXBSSCFG))
+#define AMT_IDX_RSVD_START     (AMT_SIZE_256 - AMT_IDX_RSVD_SIZE)
 
 #define AMT_SIZE(_corerev)	(D11REV_GT((_corerev), 128) ? AMT_SIZE_256 : \
 	(D11REV_IS((_corerev), 128) ? AMT_SIZE_128 : \
@@ -2508,7 +2614,7 @@ BWL_PRE_PACKED_STRUCT struct d11rxhdr_ge128 {
 	uint16 pad[1];			/** pad to 8-Byte alignment for >=128 */
 } BWL_POST_PACKED_STRUCT;
 
-/** RX Status definition - rev128 */
+/** RX Status definition - rev129 */
 typedef struct d11rxhdr_ge129 d11rxhdr_ge129_t;
 BWL_PRE_PACKED_STRUCT struct d11rxhdr_ge129 {
 	/**
@@ -4912,5 +5018,11 @@ enum {
 #define D11_WAR_BFD_TXVMEM_RESET		0x00000001
 #define D11_CHKWAR_BFD_TXVMEM_RESET(wlc_hw)	\
 	(wlc_bmac_check_d11war((wlc_hw), D11_WAR_BFD_TXVMEM_RESET))
+
+#define D11_COREVMAJOR_MASK	0x0fff
+#define D11_COREVMINOR_MASK	0xf000
+#define D11_COREVMINOR_SHIFT	12
+#define D11_MACHW_VER(major, minor)	\
+	((major & D11_COREVMAJOR_MASK) | ((minor << D11_COREVMINOR_SHIFT) & D11_COREVMINOR_MASK))
 
 #endif	/* _D11_H */

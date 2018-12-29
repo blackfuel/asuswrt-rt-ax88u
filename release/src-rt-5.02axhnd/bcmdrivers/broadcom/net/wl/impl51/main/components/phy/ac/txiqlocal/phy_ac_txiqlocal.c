@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_txiqlocal.c 765867 2018-07-18 18:48:56Z $
+ * $Id: phy_ac_txiqlocal.c 767859 2018-09-28 01:49:56Z $
  */
 
 #include <typedefs.h>
@@ -311,6 +311,7 @@ BCMATTACHFN(phy_ac_txiqlocal_populate_params)(phy_ac_txiqlocal_info_t *iqcal_inf
 
 	/* ACPHY majorrev 47 */
 	uint16 cmds_RESTART_majrev47[] = {0x265, 0x234, 0x084, 0x074, 0x056};
+	uint16 cmds_REFINE_majrev47[] = {0x265, 0x234};
 
 	/* txidx dependent digital loft comp table */
 	uint16 cmds_RESTART_TDDLC[] = { 0x434, 0x334, 0x084, 0x267, 0x056, 0x234};
@@ -531,8 +532,8 @@ BCMATTACHFN(phy_ac_txiqlocal_populate_params)(phy_ac_txiqlocal_info_t *iqcal_inf
 	} else if (ACMAJORREV_47_51(pi->pubpi->phy_rev)) {
 		cmd_restart_ptr = cmds_RESTART_majrev47;
 		num_cmds_restart = ARRAYSIZE(cmds_RESTART_majrev47);
-		cmd_refine_ptr = cmd_restart_ptr;
-		num_cmds_refine = num_cmds_restart;
+		cmd_refine_ptr = cmds_REFINE_majrev47;
+		num_cmds_refine = ARRAYSIZE(cmds_REFINE_majrev47);
 		cmd_restart_prerx_ptr = cmd_restart_ptr;
 		num_cmds_restart_prerx = num_cmds_restart;
 		cmd_refine_prerx_ptr = cmd_restart_ptr;
@@ -2260,8 +2261,10 @@ wlc_phy_txcal_radio_setup_acphy_20698(phy_ac_txiqlocal_info_t *ti, uint8 Biq2byp
 			MOD_RADIO_REG_20698(pi, LPF_OVR1, core, ovr_lpf_sw_dac_rc,	0x1);
 
 			MOD_RADIO_REG_20698(pi, TXDAC_REG0, core, iqdac_buf_cmsel, 0);
-			MOD_RADIO_REG_20698(pi, TXDAC_REG1, core, iqdac_lowcm_en, 1);
 			MOD_RADIO_REG_20698(pi, TXDAC_REG0, core, iqdac_attn, 3);
+			MOD_RADIO_REG_20698(pi, TXDAC_REG1, core, iqdac_lowcm_en, 0);
+			MOD_RADIO_REG_20698(pi, TXDAC_REG0, core, iqdac_buf_bw, 3);
+			MOD_RADIO_REG_20698(pi, TX2G_MIX_REG2, core, tx2g_mx_idac_bb, 15);
 		} else {
 			/* Put alpf default position during txiqlocal is in Tx path */
 			MOD_RADIO_REG_20698(pi, TXDAC_REG0, core, iqdac_buf_cmsel, 0);
@@ -4360,6 +4363,22 @@ BCMATTACHFN(phy_ac_txiqlocal_nvram_attach)(phy_ac_txiqlocal_info_t *ti)
 /* ********************************************* */
 
 void
+wlc_phy_populate_tx_loftcoefluts_acphy(phy_info_t *pi, uint8 start_idx, uint8 stop_idx)
+{
+	uint8  core, tbl_idx;
+	uint16 coeffs;
+
+	FOREACH_CORE(pi, core) {
+		wlc_phy_cal_txiqlo_coeffs_acphy(pi, CAL_COEFF_READ,
+			&coeffs, TB_OFDM_COEFFS_D, core);
+		for (tbl_idx = start_idx; tbl_idx <= stop_idx; tbl_idx ++) {
+			wlc_phy_table_write_acphy(pi, ACPHY_TBL_ID_LOFTCOEFFLUTS(core), 1,
+			tbl_idx, 16, &coeffs);
+		}
+	}
+}
+
+void
 wlc_phy_populate_tx_loft_comp_tbl_acphy(phy_info_t *pi, uint16 *loft_coeffs)
 {
 	/* There are 2 implementations: */
@@ -4737,6 +4756,10 @@ wlc_phy_precal_txgain_acphy(phy_info_t *pi, txgain_setting_t *target_gains)
 			} else if (ACMAJORREV_37(pi->pubpi->phy_rev) ||
 			           ACMAJORREV_47_51(pi->pubpi->phy_rev)) {
 				target_pwr_idx = 20;
+				if (ACMAJORREV_47(pi->pubpi->phy_rev) &&
+					(pi->cal_info->cal_phase_id == PHY_CAL_PHASE_INIT)) {
+					target_pwr_idx = 35;
+				}
 			} else if (ACMAJORREV_40(pi->pubpi->phy_rev)) {
 				if (CHSPEC_IS2G(pi->radio_chanspec)) {
 					target_pwr_idx = ((PHY_IPA(pi)) ? 30 : 10);
@@ -4770,6 +4793,10 @@ wlc_phy_precal_txgain_acphy(phy_info_t *pi, txgain_setting_t *target_gains)
 				* in AC2PHY_TBL_ID_IQLOCAL phytble
 				*/
 				target_gains[core].bbmult = 64;
+				if (ACMAJORREV_47(pi->pubpi->phy_rev) &&
+					(pi->cal_info->cal_phase_id == PHY_CAL_PHASE_INIT)) {
+					target_gains[core].rad_gain |= 0xff00;
+				}
 			}
 		}
 

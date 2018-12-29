@@ -1,13 +1,9 @@
 ﻿/* CSS Document */
-.bg{
-	background: rgb(81, 61, 61) url(/images/New_ui/login_bg.png) no-repeat center center fixed;
-	-webkit-background-size: cover;
-	-moz-background-size: cover;
-	-o-background-size: cover;
-	background-size: cover;
+body{
+	background-color: rgb(31, 31, 31) !important;
 }
-.bg-odm{
-	background: rgb(31, 31, 31) url(/images/New_ui/login_bg_COD.png) no-repeat center center fixed;
+.bg{
+	background:url(/images/New_ui/login_bg.png) no-repeat center center fixed;
 	-webkit-background-size: cover;
 	-moz-background-size: cover;
 	-o-background-size: cover;

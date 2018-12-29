@@ -86,9 +86,7 @@
 #include <phy_calmgr_api.h>
 #include <phy_ac_info.h>
 #include <wlc_modesw.h>
-
 #include <wlc_airiq.h>
-
 #include <phy_ac.h>
 #include <phy_utils_reg.h>
 #include <wlc_phyreg_ac.h>
@@ -138,10 +136,10 @@ void
 wlc_airiq_3p1_upgrade_phy(airiq_info_t *airiqh)
 {
 	wlc_info_t *wlc = airiqh->wlc;
-    phy_info_t *pi = (phy_info_t *) WLC_PI(wlc);
+	phy_info_t *pi = (phy_info_t *) WLC_PI(wlc);
 
 	wlc_mute(wlc, ON, PHY_MUTE_FOR_PREISM);
-    phy_ac_chanmgr_set_val_phymode(PHY_AC_CHANMGR(pi), 0);
+	phy_ac_chanmgr_set_val_phymode(PHY_AC_CHANMGR(pi), 0);
 
 	airiqh->upgrade_pending = FALSE;
 	wlc_mute(wlc, OFF, PHY_MUTE_FOR_PREISM);
@@ -291,7 +289,7 @@ wlc_airiq_3p1_upgrade_wlc(wlc_info_t *wlc)
 	int idx = 0;
 	wlc_bsscfg_t *bsscfg;
 	uint8 new_oper_mode = 0, curr_oper_mode, bw = 0, nss;
-	bool mode_switch_sched = FALSE,is160_8080 = FALSE;
+	bool mode_switch_sched = FALSE, is160_8080 = FALSE;
 	int err = BCME_UNSUPPORTED;
 	int max_nss = WLC_BITSCNT(wlc->stf->hw_txchain);
 
@@ -350,9 +348,9 @@ wlc_airiq_3p1_downgrade_wlc(wlc_info_t *wlc)
 	int idx = 0;
 	wlc_bsscfg_t *bsscfg;
 	uint8 new_oper_mode = 0, curr_oper_mode, bw = 0, nss;
-	bool mode_switch_sched = FALSE,is160_8080 = FALSE;
+	bool mode_switch_sched = FALSE, is160_8080 = FALSE;
 	int err = BCME_UNSUPPORTED;
-    int max_nss = WLC_BITSCNT(wlc->stf->hw_txchain);
+	int max_nss = WLC_BITSCNT(wlc->stf->hw_txchain);
 
 	FOREACH_UP_AP(wlc, idx, bsscfg) {
 		if (WLC_BSS_CONNECTED(bsscfg)) {
@@ -381,7 +379,7 @@ wlc_airiq_3p1_downgrade_wlc(wlc_info_t *wlc)
 				ASSERT(FALSE);
 		}
 		/* New mode is one chain less than supported */
-        new_oper_mode = DOT11_D8_OPER_MODE(0, (max_nss - 1), 0, is160_8080, bw);
+		new_oper_mode = DOT11_D8_OPER_MODE(0, (max_nss - 1), 0, is160_8080, bw);
 		err = wlc_modesw_handle_oper_mode_notif_request(wlc->modesw, bsscfg,
 				new_oper_mode, TRUE, MODESW_CTRL_OPMODE_IE_REQD_OVERRIDE);
 		if (err != BCME_OK) {

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_vasip.c 748133 2018-02-21 19:19:22Z $
+ * $Id: phy_ac_vasip.c 766999 2018-08-24 01:14:37Z $
  */
 
 #include <phy_cfg.h>
@@ -74,6 +74,28 @@ struct phy_ac_vasip_info {
 	uint8	vasipver;
 };
 
+typedef struct _svmp_list {
+	uint32 addr;
+	uint16 cnt;
+} svmp_list_t;
+
+typedef struct _d11phyregs_list {
+	uint16 addr;
+	uint16 cnt;
+} d11phyregs_list_t;
+
+CONST d11phyregs_list_t PHYLISTDATA[] = {
+	{0x1049, 10}, /* MACVASIP_F_MBOX */
+	{0x10EC,  4}, /* VASIP_WDOG */
+	{0x1110,  9}, /* SVMP_ADDR_MON */
+	{0x11C0, 16}, /* TX_MISC_1 */
+	{0x1290, 77}, /* TxbfBfdMuMimo */
+	{0x1400,  4}, /* SMC_CONTROL_STATUS part1 */
+	{0x1405, 17}, /* SMC_CONTROL_STATUS part2 */
+	{0x39f,   2}, /* rxmacphy part1 */
+	{0x1368,  6}  /* rxmacphy part2 */
+};
+
 /*
  * Return vasip version, -1 if not present.
  */
@@ -97,6 +119,7 @@ static void phy_ac_vasip_read_svmp_blk(phy_type_vasip_ctx_t *ctx, uint32 offset,
 	uint16 *val);
 #if defined(BCMDBG)
 static void phy_ac_dump_bfd_status(phy_type_vasip_ctx_t *ctx, struct bcmstrbuf *b);
+static void phy_ac_dump_svmp(phy_type_vasip_ctx_t *ctx, struct bcmstrbuf *b);
 #endif // endif
 
 /* register phy type specific implementation */
@@ -134,6 +157,7 @@ BCMATTACHFN(phy_ac_vasip_register_impl)(phy_info_t *pi, phy_ac_info_t *aci,
 	fns.read_svmp_blk = phy_ac_vasip_read_svmp_blk;
 #if defined(BCMDBG)
 	fns.dump_bfd_status = phy_ac_dump_bfd_status;
+	fns.dump_svmp = phy_ac_dump_svmp;
 #endif // endif
 
 	if (ACMAJORREV_GE40_NE47(pi->pubpi->phy_rev)) {
@@ -619,4 +643,187 @@ static void phy_ac_dump_bfd_status(phy_type_vasip_ctx_t *ctx, struct bcmstrbuf *
 	phy_utils_phyreg_exit(pi);
 	wlapi_enable_mac(pi->sh->physhim);
 }
+
+static void phy_ac_dump_svmp(phy_type_vasip_ctx_t *ctx, struct bcmstrbuf *b)
+{
+	phy_ac_vasip_info_t *info = (phy_ac_vasip_info_t *)ctx;
+	phy_info_t *pi = info->pi;
+
+	uint8 stall_val;
+	uint m, n, idx, step, svmp_len;
+	uint16 svmp_list_len, svmp_block_len;
+	uint16 svmp_val[32], phyreg_list_len, reg_val;
+	uint16 vasipreg_list_len, vasipreg_val;
+	uint32 svmp_addr;
+	uint32 tbl_val[32];
+	uint64 tbl_val_64[32];
+
+	svmp_list_t svmpmems[] = {
+		{0x40000, 128},
+		{0x40080, 32},
+		{0x40100, 32},
+		{0x40180, 128},
+		{0x40260, 32},
+		{0x40280, 0x400},
+		{0x2bb20, 0x60},
+		{0x30000, 32},
+		{0x30900, 32},
+		{0x31200, 32},
+		{0x31b00, 32},
+		{0x3c010, 32},
+		{0x3c080, 32},
+		{0xe000, 0x2000}, /* CQI report */
+		{0x10000, 0x8000}, /* TXV_IDX =  0 ~ 31 */
+		{0x18000, 0x8000}, /* TXV_IDX = 32 ~ 63 */
+		{0x20000, 32}, /* TXV_IDX = 64 */
+		{0x22000, 32} /* TXV_IDX = 65 */
+	};
+
+	uint16 phyreg_list[] = {0x1301, 0x1311, 0x1f0, 0x1f1, 0x60d, 0x80d,
+		0xa0d, 0xc0d, 0x601, 0x801, 0xa01, 0xc01, 0x3ec, 0x3, 0x107d};
+
+	uint16 vasipreg_list[] = {0x2c, 0x30, 0xd0, 0xd4, 0xe0, 0xe4};
+
+	phyreg_list_len = sizeof(phyreg_list)/sizeof(phyreg_list[0]);
+	vasipreg_list_len = sizeof(vasipreg_list)/sizeof(vasipreg_list[0]);
+
+	if (!ACMAJORREV_47(pi->pubpi->phy_rev))
+		return;
+
+	wlapi_suspend_mac_and_wait(pi->sh->physhim);
+	phy_utils_phyreg_enter(pi);
+	stall_val = READ_PHYREGFLD(pi, RxFeCtrl1, disable_stalls);
+	ACPHY_DISABLE_STALL(pi);
+
+	bcm_bprintf(b, "===== Important Register =====\n");
+	for (m = 0; m < phyreg_list_len; m++) {
+		reg_val = phy_utils_read_phyreg(pi, phyreg_list[m]);
+		bcm_bprintf(b, "0x%-4x   0x%-4x\n", phyreg_list[m], reg_val);
+	}
+
+	for (m = 0; m < sizeof(PHYLISTDATA)/sizeof(d11phyregs_list_t); m++) {
+		for (n = 0; n < PHYLISTDATA[m].cnt; n++) {
+			reg_val = phy_utils_read_phyreg(pi, PHYLISTDATA[m].addr+n);
+			bcm_bprintf(b, "0x%-4x   0x%-4x\n", PHYLISTDATA[m].addr+n, reg_val);
+		}
+	}
+
+	bcm_bprintf(b, "\n===== Important TABLE =====\n");
+	/* ACPHY_TBL_ID_AXMACPHYIFTBL has 128 entries and each has 64 bits */
+	for (m = 0; m < 4; m++) {
+		wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_AXMACPHYIFTBL, 32, m*32, 64,
+			&tbl_val_64[0]);
+		for (n = 0; n < 32; n++) {
+			bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x   0x%-8x\n",
+				ACPHY_TBL_ID_AXMACPHYIFTBL, n+32*m, tbl_val_64[n] & 0xffffffff,
+				(tbl_val_64[n] >> 32) & 0xffffffff);
+		}
+	}
+
+	/* dump vasipregister */
+	for (m = 0; m < vasipreg_list_len; m++) {
+		vasipreg_val = vasipreg_list[m] >> 2;
+		wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_VASIPREGISTERS, 1,
+			vasipreg_val, 32, &tbl_val[0]);
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_VASIPREGISTERS,
+			vasipreg_val, tbl_val[0]);
+	}
+
+	/* dump vasippchistory 16 index */
+	wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_VASIPPCHISTORY, 16, 0, 32, &tbl_val[0]);
+	for (m = 0; m < 16; m++) {
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_VASIPPCHISTORY,
+			m, tbl_val[m]);
+	}
+
+	/* dump smctable */
+	for (m = 0; m < 2; m++) {
+		wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_SVMPTBL, 1, 0x34, 32, &tbl_val[0]);
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTBL,
+			0x34, tbl_val[0] & 0xffff);
+	}
+
+	for (m = 0; m < 2; m++) {
+		wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_SVMPTBL, 1, 0x40, 32, &tbl_val[0]);
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTBL,
+			0x40, tbl_val[0] & 0xffff);
+	}
+
+	for (m = 0; m < 2; m++) {
+		wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_SVMPTBL, 1, 0x44, 32, &tbl_val[0]);
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTBL,
+		0x44, tbl_val[0] & 0xffff);
+	}
+
+	wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_SVMPTINYTBL, 2, 0x901, 32, &tbl_val[0]);
+	bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTINYTBL,
+		0x901, tbl_val[0]);
+	bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTINYTBL,
+		0x902, tbl_val[1]);
+
+	wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_SVMPTINYTBL, 2, 0x9DA, 32, &tbl_val[0]);
+	bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTINYTBL,
+		0x9DA, tbl_val[0]);
+	bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTINYTBL,
+		0x9DB, tbl_val[1]);
+
+	/* SMC M0 table */
+	wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_SVMPTINYTBL, 32, 0, 32, &tbl_val[0]);
+	for (m = 0; m < 32; m++) {
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTINYTBL,
+			m, tbl_val[m]);
+	}
+
+	/* SMC M1 table */
+	wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_SVMPTINYTBL, 32, 0x800, 32, &tbl_val[0]);
+	for (m = 0; m < 32; m++) {
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_SVMPTINYTBL,
+			m+0x800, tbl_val[m]);
+	}
+
+	/* dump BFM header */
+	wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_BFMSTEERMEM, 8, 0, 32,
+		&tbl_val[0]);
+	for (m = 0; m < 8; m++) {
+		bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_BFMSTEERMEM,
+			m, tbl_val[m]);
+	}
+
+	/* dump bfdIndexLUT 128 index */
+	for (m = 0; m < 4; m++) {
+		wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_BFDINDEXLUT, 32, m*32, 32, &tbl_val[0]);
+		for (n = 0; n < 32; n++) {
+			bcm_bprintf(b, "0x%-2x   0x%-4x   0x%-8x\n", ACPHY_TBL_ID_BFDINDEXLUT,
+				n+32*m, tbl_val[n]);
+		}
+	}
+
+	bcm_bprintf(b, "\n===== Important SVMP =====\n");
+	svmp_list_len = sizeof(svmpmems)/sizeof(svmpmems[0]);
+	for (m = 0; m < svmp_list_len; m++) {
+		svmp_block_len = svmpmems[m].cnt/32;
+		svmp_addr = svmpmems[m].addr;
+
+		if ((svmp_addr >= 0x10000) && (svmp_addr < 0x20000)) {
+			step = 16, svmp_len = 16;
+		} else if ((svmp_addr >= 0xe000) && (svmp_addr < 0x10000)) {
+			step = 6, svmp_len = 16;
+		} else {
+			step = 1, svmp_len = 32;
+		}
+
+		for (n = 0; n < svmp_block_len; n += step) {
+			phy_ac_vasip_read_svmp_blk(ctx, svmp_addr + 32*n, svmp_len, &svmp_val[0]);
+			for (idx = 0; idx < svmp_len; idx++)
+				bcm_bprintf(b, "svmp   0x%-4x   0x%-4x\n", svmp_addr + 32*n + idx,
+					svmp_val[idx]);
+		}
+	}
+
+	/* restore stall value */
+	ACPHY_ENABLE_STALL(pi, stall_val);
+	phy_utils_phyreg_exit(pi);
+	wlapi_enable_mac(pi->sh->physhim);
+}
+
 #endif // endif

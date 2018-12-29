@@ -487,10 +487,17 @@ hwa_bm_alloc(hwa_bm_t *bm, dma64addr_t *buf_addr)
 
 	regs = bm->dev->regs;
 
-	if (bm->instance == HWA_TX_BM)
+	if (bm->instance == HWA_TX_BM) {
+		if (bm->avail_sw == 0) {
+			HWA_TRACE(("%s: No SW pkt buffer\n", __FUNCTION__));
+			bm->avail_sw_low++;
+			return HWA_FAILURE;
+		}
 		v32 = HWA_RD_REG_NAME(bm->name, regs, tx_bm, alloc_index);
-	else
+	}
+	else {
 		v32 = HWA_RD_REG_NAME(bm->name, regs, rx_bm, alloc_index);
+	}
 	status = BCM_GBF(v32, HWA_BM_ALLOC_INDEX_ALLOCSTATUS);
 
 	if (status == HWA_BM_SUCCESS_SW) {
@@ -499,7 +506,6 @@ hwa_bm_alloc(hwa_bm_t *bm, dma64addr_t *buf_addr)
 			  HWA_RD_REG_NAME(bm->name, regs, tx_bm, alloc_addr.loaddr);
 			buf_addr->hiaddr =
 			  HWA_RD_REG_NAME(bm->name, regs, tx_bm, alloc_addr.hiaddr);
-			HWA_ASSERT(bm->avail_sw > 0);
 			bm->avail_sw--;
 		} else {
 			buf_addr->loaddr =

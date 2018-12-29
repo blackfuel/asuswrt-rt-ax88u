@@ -171,6 +171,7 @@ typedef enum wlcsm_msgtype {
     WLCSM_MSG_NVRAM_GETALL_DONE, /* for getall operation, if nvarm set is too big,more transaction may needed, so need this msg to indeciate done */
     WLCSM_MSG_NVRAM_COMMIT,
     WLCSM_MSG_NVRAM_XFR,
+    WLCSM_MSG_DUMP_PREV_OOPS,
 #ifdef WLCSM_DEBUG
     WLCSM_MSG_NVRAM_SETTRACE,
     WLCSM_MSG_DEBUG_LOGMESSAGE,

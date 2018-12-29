@@ -279,7 +279,7 @@ chanim_record_chan_dwell(acs_chaninfo_t *c_info, chanim_info_t *ch_info)
 	uint8 cur_idx = chanim_mark(ch_info).record_idx;
 	uint8 start_idx;
 	chanim_acs_record_t *start_record;
-	time_t now = time(NULL);
+	time_t now = uptime();
 
 	/* negative value implies infinite dwell time; negative implies infinity */
 	if (c_info->acs_chan_dwell_time < 0) {
@@ -356,7 +356,7 @@ acs_channel_trigger(acs_chaninfo_t *c_info, char *ifname)
 					"%d\n", ret);
 		} else {
 			c_info->recent_prev_chspec = c_info->cur_chspec;
-			c_info->acs_prev_chan_at = time(NULL);
+			c_info->acs_prev_chan_at = uptime();
 			if (!c_info->trf_thold) {
 				acs_intfer_config_txfail(c_info);
 			}
@@ -639,7 +639,7 @@ acsd_main_loop(struct timeval *tv)
 						ACSD_5G("0x%x\t", event->txfail_histo[idx]);
 					}
 
-					ACSD_5G("\n time:%u", (uint32)time(NULL));
+					ACSD_5G("\n time:%u", (uint32)uptime());
 					acs_channel_trigger(c_info, ifname);
 
 					break;
@@ -665,7 +665,7 @@ acsd_main_loop(struct timeval *tv)
 						event->type, event->version, event->length,
 						event->count);
 
-					ACSD_5G("\n time:%u", (uint32)time(NULL));
+					ACSD_5G("\n time:%u", (uint32)uptime());
 					acs_channel_trigger(c_info, ifname);
 
 					break;
@@ -761,7 +761,7 @@ acsd_main_loop(struct timeval *tv)
 						}
 					} else if (escan_event_status == WLC_E_STATUS_SUCCESS) {
 						/* Escan finished. Lets dump results */
-						c_info->timestamp_acs_scan = time(NULL);
+						c_info->timestamp_acs_scan = uptime();
 						if (c_info->acs_escan->scan_type == ACS_SCAN_TYPE_CS) {
 							c_info->timestamp_tx_idle =
 								c_info->timestamp_acs_scan;
@@ -946,7 +946,7 @@ acsd_watchdog(uint ticks)
 				(!c_info->is160_bwcap || c_info->bgdfs160) &&
 				c_info->acs_bgdfs->state != BGDFS_STATE_IDLE) {
 			acs_bgdfs_info_t * bgdfs = c_info->acs_bgdfs;
-			time_t now = time(NULL);
+			time_t now = uptime();
 			bool bgdfs_scan_done = FALSE;
 			if ((ticks % ACS_BGDFS_SCAN_STATUS_CHECK_INTERVAL) == 0) {
 				if ((ret = acs_bgdfs_get(c_info)) != BGDFS_CAP_TYPE0) {

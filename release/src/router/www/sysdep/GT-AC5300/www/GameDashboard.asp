@@ -195,10 +195,18 @@ function initial(){
 		$("#aura_field").show();
 		$("#boostKey_field").show();
 	}
-	else if(based_modelid == "GT-AX11000"){
+	else if(rog_support){
 		$("#pingMap").show();
-		$("#aura_field").show();
-		$("#boostKey_field").show();
+		if (aura_support) {
+			$("#aura_field").show();
+		}
+		else {
+			$('#pingMap').height('430px');
+		}
+
+		if (boostKey_support) {
+			$("#boostKey_field").show();
+		}
 	}
 	else{
 		$("#wan_state_icon").attr("class", "wan_state_icon");
@@ -222,15 +230,22 @@ function initial(){
 
 	setTimeout(check_eula, 100);
 
+	if(isSwMode('rt')){
+		if (ddns_enable == '0' || ddnsName == '' || ddnsName == isMD5DDNSName()) {
+			$('#wan_ip_title').html('WAN IP');
+			$('#wan_ip_field').html(wanlink_ipaddr);
+		}
+		else {
+			$('#wan_ip_title').html('DDNS');
+			$('#wan_ip_field').html(ddnsName);
+		}
+	}
+	else{	// AP/Repeater/Media Bridge
+		$('#wan_ip_title').html('<#LAN_IP#>');
+		$('#wan_ip_field').html('<% nvram_get("lan_ipaddr"); %>');
+	}
 
-	if (ddns_enable == '0' || ddnsName == '' || ddnsName == isMD5DDNSName()) {
-		$('#wan_ip_title').html('WAN IP');
-		$('#wan_ip_field').html(wanlink_ipaddr);
-	}
-	else {
-		$('#wan_ip_title').html('DDNS');
-		$('#wan_ip_field').html(ddnsName);
-	}
+	
 	aura_settings = document.form.aurargb_val.value.split(',');
 	aurargb = "#" + rgbToHex(aura_settings[0]) + rgbToHex(aura_settings[1]) + rgbToHex(aura_settings[2]);
 	setColor(aurargb);
@@ -244,7 +259,7 @@ function initial(){
 	else if(aura_settings[3] == "3"){
 		$("#_flash").removeClass("aura-scheme-icon").addClass("aura-scheme-icon-enable");
 	}
-	else if(aura_settings[3] == "6"){
+	else if(aura_settings[3] == "5"){
 		$("#_rainbow").removeClass("aura-scheme-icon").addClass("aura-scheme-icon-enable");
 	}
 	else if(aura_settings[3] == "8"){
@@ -304,11 +319,18 @@ function check_sw_mode(){
 function check_wireless(){
 	var temp = "";
 	//check 2.4 GHz
+	if(isSwMode('mb')){
+		wl0_radio = '0';
+	}
 	temp = (wl0_radio == "1") ? "wl0_icon_on" : "wl0_icon_off"
 	$("#wl0_icon").addClass(temp);
 
 	//check 5 GHz-1
 	if(band5g_support){
+		if (isSwMode('mb')) {
+			wl1_radio = '0';
+		}
+
 		temp = (wl1_radio == "1") ? "wl1_icon_on" : "wl1_icon_off"
 		if(band5g2_support){
 			temp = (wl1_radio == "1") ? "wl1_1_icon_on" : "wl1_1_icon_off"
@@ -320,6 +342,9 @@ function check_wireless(){
 
 	//check 5 GHz-2
 	if(band5g2_support){
+		if (isSwMode('mb')) {
+			wl2_radio = '0';
+		}
 		temp = (wl2_radio == "1") ? "wl2_icon_on" : "wl2_icon_off"
 
 		$("#wl2_icon").show();
@@ -712,18 +737,23 @@ function changeRgbMode(obj){
 
 	if(obj.id == "static"){
 		aura_settings[3] = "1";
+		aura_settings[4] = "0";
 	}
 	else if(obj.id == "breath"){
 		aura_settings[3] = "2";
+		aura_settings[4] = "0";
 	}
 	else if(obj.id == "flash"){
 		aura_settings[3] = "3";
+		aura_settings[4] = "0";
 	}
 	else if(obj.id == "rainbow"){
-		aura_settings[3] = "6";
+		aura_settings[3] = "5";
+		aura_settings[4] = "2";
 	}
 	else if(obj.id == "commet"){
 		aura_settings[3] = "8";
+		aura_settings[4] = "0";
 	}
 
 	submitAura();
@@ -820,7 +850,7 @@ var isMD5DDNSName = function(){
 										<div style="display: inline-block;width:270px;">
 											<div id="internet_title" class="rog-title" style="text-align: center;text-transform: uppercase;"><#statusTitle_Internet#></div>
 											<div id="wan_state_icon" class="wan_state_icon"></div>
-											<div id="wan_state" style="font-size: 18px;color:#57BDBA;text-transform: uppercase;text-align: center;margin: -15px 0 0 15px;"></div>
+											<div id="wan_state" style="font-size: 18px;color:#57BDBA;text-transform: uppercase;text-align: center;margin: 0 0 0 15px;"></div>
 										</div>	
 										<div style="display: inline-block;width:180px;vertical-align: top;text-align: center;">
 											

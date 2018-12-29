@@ -43,7 +43,7 @@
  *
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
- * $Id: km_bsscfg.c 758912 2018-04-23 01:57:25Z $
+ * $Id: km_bsscfg.c 768091 2018-10-04 09:07:09Z $
  */
 
 #include "km_pvt.h"
@@ -468,6 +468,7 @@ km_bsscfg_get_amt_idx(keymgmt_t *km, wlc_bsscfg_t *bsscfg)
 		amt_idx	= bss_km->cfg_amt_idx;
 
 		if (km_hw_amt_idx_valid(km->hw, amt_idx)) {
+			km_hw_amt_reserve(km->hw, amt_idx, 1, TRUE);
 			goto done;
 		}
 	}

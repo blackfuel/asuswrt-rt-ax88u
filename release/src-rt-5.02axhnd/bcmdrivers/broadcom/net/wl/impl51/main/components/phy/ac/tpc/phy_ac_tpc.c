@@ -46,7 +46,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_tpc.c 765733 2018-07-13 23:46:17Z $
+ * $Id: phy_ac_tpc.c 767574 2018-09-17 18:38:50Z $
  */
 #include <phy_cfg.h>
 #include <typedefs.h>
@@ -134,6 +134,7 @@ struct phy_ac_tpc_info {
 	uint8	txpwr_damping_factor_set;
 	bool	olpc_dbg_mode;
 	bool	olpc_dbg_mode_caldone;
+	bool	olpc_mode_caldone;
 	bool _txpwrbackoff;
 	phy_txpwrbackoff_t* phy_txpwrbackoff;
 	int	dbg_phy_nvram_err;
@@ -279,7 +280,7 @@ int phy_ac_tpc_dump_power_backoff(phy_type_tpc_ctx_t *ct, phy_txpwrbackoff_info_
 int phy_ac_tpc_txbackoff_set(phy_type_tpc_ctx_t *ct, int16 txpwr_offset);
 #endif /* TXPWRBACKOFF */
 
-static const uint32 lowrate_tssi_delay_set47_1[9][2] = {
+static const uint32 lowrate_tssi_delay_set47_1[10][2] = {
 	{470,470},  /* pdet_id = 0 */
 	{470,470},  /* pdet_id = 1 */
 	{470,470},  /* pdet_id = 2 */
@@ -288,7 +289,8 @@ static const uint32 lowrate_tssi_delay_set47_1[9][2] = {
 	{440,470},  /* pdet_id = 5 */
 	{440,470},  /* pdet_id = 6 */
 	{440,440},  /* pdet_id = 7 */
-	{440,440},  /* pdet_id = 8 */
+	{470,470},  /* pdet_id = 8 */
+	{470,470},  /* pdet_id = 9 */
 };
 
 #ifdef PPR_API
@@ -479,6 +481,7 @@ FOREACH_CORE(tpci->pi, core)
 	/* Initialize baseindex override to FALSE */
 	tpci->ti->data->ovrinitbaseidx = FALSE;
 #endif // endif
+	tpci->olpc_mode_caldone = FALSE;
 }
 
 static int
@@ -593,7 +596,7 @@ wlc_phy_txpower_recalc_target_ac_big(phy_type_tpc_ctx_t *ctx, ppr_t *tx_pwr_targ
 	int8 floor_pwr = 127;
 	ppr_vht_mcs_rateset_t srom_bl_pwr;
 #endif /* WL_MU_TX */
-#if (defined(WLTEST) || defined(WLPKTENG) || defined(WL_EAP_OLPC))
+#if (defined(WLTEST) || defined(WLPKTENG))
 	int16 openloop_pwrctrl_delta;
 	bool mac_enabled = FALSE;
 #ifdef WLC_TXCAL
@@ -719,7 +722,6 @@ wlc_phy_txpower_recalc_target_ac_big(phy_type_tpc_ctx_t *ctx, ppr_t *tx_pwr_targ
 		if (tx_pwr_max < (pi->min_txpower * WLC_TXPWR_DB_FACTOR)) {
 			tx_pwr_max = pi->min_txpower * WLC_TXPWR_DB_FACTOR;
 		}
-#ifdef WL_EAP_OLPC
 		/* Ensure that the Max power is at least equal to the TSSI
 		 * visbility threshold.
 		 */
@@ -730,7 +732,6 @@ wlc_phy_txpower_recalc_target_ac_big(phy_type_tpc_ctx_t *ctx, ppr_t *tx_pwr_targ
 				tx_pwr_max = tssi_visi_thresh;
 			}
 		}
-#endif /* WL_EAP_OLPC */
 
 		tx_pwr_min = ppr_get_min(tx_pwr_target, mintxpwr);
 
@@ -782,7 +783,7 @@ wlc_phy_txpower_recalc_target_ac_big(phy_type_tpc_ctx_t *ctx, ppr_t *tx_pwr_targ
 
 		PHY_NONE(("wl%d: %s: min %d max %d\n", pi->sh->unit, __FUNCTION__,
 		    tx_pwr_min, tx_pwr_max));
-#ifdef WL_EAP_OLPC
+
 		PHY_TXPWR(("WL_EAP wl%d: %s: channel %d, min %d (%d.%d dBm) max %d (%d.%d dBm)\n",
 			pi->sh->unit, "recalc_target", CHSPEC_CHANNEL(chspec),
 			tx_pwr_min,
@@ -791,8 +792,6 @@ wlc_phy_txpower_recalc_target_ac_big(phy_type_tpc_ctx_t *ctx, ppr_t *tx_pwr_targ
 			tx_pwr_max,
 			tx_pwr_max >> 2, 0 == (tx_pwr_max & 3) ? 0 : 1 == (tx_pwr_max & 3) ? 25 :
 			2 == (tx_pwr_max & 3) ? 50 : 75));
-
-#endif /* WL_EAP_OLPC */
 
 		/* determinate the txpower offset by either of the following 2 methods:
 		 * txpower_offset = txpower_max - txpower_target OR
@@ -830,7 +829,7 @@ wlc_phy_txpower_recalc_target_ac_big(phy_type_tpc_ctx_t *ctx, ppr_t *tx_pwr_targ
 	 */
 	/* Common Code End */
 
-#if (defined(WLTEST) || defined(WLPKTENG) || defined(WL_EAP_OLPC))
+#if (defined(WLTEST) || defined(WLPKTENG))
 	/* for 4360A/B0, when targetPwr is out of the tssi visibility range,
 	 * force the power offset to be the delta between the lower bound of visibility
 	 * range and the targetPwr
@@ -908,6 +907,51 @@ wlc_phy_txpower_recalc_target_ac_big(phy_type_tpc_ctx_t *ctx, ppr_t *tx_pwr_targ
 				} else if (openloop_pwrctrl_delta < -128) {
 					openloop_pwrctrl_delta = -128;
 #endif /* WLC_TXCAL */
+				}
+				ppr_set_cmn_val(pi->tx_power_offset,
+					(int8) openloop_pwrctrl_delta);
+#ifdef WLTXPWR_CACHE
+				wlc_phy_txpwr_cache_invalidate(pi->txpwr_cache);
+#endif  /* WLTXPWR_CACHE */
+				PHY_NONE(("###offset: %d targetPwr %d###\n",
+					openloop_pwrctrl_delta,
+					pi->tx_power_max_per_core[0]));
+			}
+		} else if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
+			bool suspend = FALSE;
+			openloop_pwrctrl_delta = wlc_phy_tssivisible_thresh_acphy(pi) -
+				info->ti->data->tx_user_target;
+			if (openloop_pwrctrl_delta > 0 && pi->u.pi_acphy->tpci->olpc_mode_caldone) {
+				ppr_set_cmn_val(pi->tx_power_offset, 0);
+				phy_tpc_recalc_tgt(pi->tpci);
+				/* Stop PKTENG if already running.. */
+				wlc_phy_conditional_resume(pi, &suspend);
+				wlapi_bmac_pkteng(pi->sh->physhim, 0, 0);
+				OSL_DELAY(100);
+
+				/* Turn ON Power Control */
+				wlc_phy_txpwrctrl_enable_acphy(pi, PHY_TPC_HW_ON);
+
+				FOREACH_CORE(pi, core) {
+					pi->tx_power_max_per_core[core] =
+						wlc_phy_tssivisible_thresh_acphy(pi) & 0xff;
+					/* Set TX Power here for PKTENG */
+					wlc_phy_txpwrctrl_set_target_acphy
+						(pi, pi->tx_power_max_per_core[core], core);
+				}
+
+				/* Start PKTENG to settle TX power Control */
+				wlapi_bmac_pkteng(pi->sh->physhim, 1, 100);
+				OSL_DELAY(1000);
+				wlc_phy_conditional_suspend(pi, &suspend);
+				OSL_DELAY(100);
+
+				/* Toggle Power Control to save off base index */
+				wlc_phy_txpwrctrl_enable_acphy(pi, PHY_TPC_HW_OFF);
+				if (openloop_pwrctrl_delta > 127) {
+					openloop_pwrctrl_delta = 127;
+				} else if (openloop_pwrctrl_delta < -128) {
+					openloop_pwrctrl_delta = -128;
 				}
 				ppr_set_cmn_val(pi->tx_power_offset,
 					(int8) openloop_pwrctrl_delta);
@@ -3071,6 +3115,8 @@ wlc_phy_txpwrctrl_pwr_setup_srom12_acphy(phy_info_t *pi)
 						core, table_highpwr_20, 2);
 					}
 				}
+				//ER packet offset due to 3dB L-STF/LTF boosting
+				MOD_PHYREG(pi, txPwrCtrl11ax, he_range_ext_power_offset, 12);
 			}
 		} else {
 			mult_mode = 2;
@@ -3180,7 +3226,8 @@ wlc_phy_txpwrctrl_pwr_setup_srom12_acphy(phy_info_t *pi)
 	/* decouple IQ comp and LOFT comp from Power Control */
 	MOD_PHYREG(pi, TxPwrCtrlCmd, use_txPwrCtrlCoefsIQ, 0);
 	MOD_PHYREG(pi, TxPwrCtrlCmd, use_txPwrCtrlCoefsLO,
-	   (ACREV_IS(pi->pubpi->phy_rev, 1) || ACREV_IS(pi->pubpi->phy_rev, 9)) ? 1 : 0);
+	   (ACREV_IS(pi->pubpi->phy_rev, 1) || ACREV_IS(pi->pubpi->phy_rev, 9) ||
+	    (ACREV_IS(pi->pubpi->phy_rev, 47) && (CHSPEC_IS5G(pi->radio_chanspec) == 1))) ? 1 : 0);
 
 #ifdef WL_SARLIMIT
 	wlc_phy_set_sarlimit_acphy(pi_ac->tpci);
@@ -4496,6 +4543,7 @@ wlc_phy_txpwr_by_index_acphy(phy_info_t *pi, uint8 core_mask, int8 txpwrindex)
 	uint8 core;
 	uint8 stall_val;
 	bool suspend = FALSE;
+	uint16 coeff_vals;
 
 	/* Suspend MAC if haven't done so */
 	wlc_phy_conditional_suspend(pi, &suspend);
@@ -4559,6 +4607,15 @@ wlc_phy_txpwr_by_index_acphy(phy_info_t *pi, uint8 core_mask, int8 txpwrindex)
 				}
 #endif /* WL_ETMODE */
 			}
+		}
+
+		if (ACMAJORREV_47(pi->pubpi->phy_rev) && (CHSPEC_IS5G(pi->radio_chanspec) == 1)) {
+			wlc_phy_table_read_acphy(pi, ACPHY_TBL_ID_LOFTCOEFFLUTS(core), 1,
+				txpwrindex, 16, &coeff_vals);
+			wlc_phy_cal_txiqlo_coeffs_acphy(pi, CAL_COEFF_WRITE,
+				&coeff_vals, TB_OFDM_COEFFS_D,  core);
+			wlc_phy_cal_txiqlo_coeffs_acphy(pi, CAL_COEFF_WRITE,
+				&coeff_vals, TB_BPHY_COEFFS_D,  core);
 		}
 
 		/* Update the per-core state of power index */
@@ -7743,6 +7800,7 @@ phy_ac_tpc_update_olpc_cal(phy_type_tpc_ctx_t *tpc_ctx, bool set, bool dbg)
 		tpci->olpc_dbg_mode = dbg;
 		if (set) {
 			tpci->olpc_dbg_mode_caldone = set;
+			tpci->olpc_mode_caldone = set;
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 			/* Toggle Power Control to save off base index */
 			wlc_phy_txpwrctrl_enable_acphy(pi, 0);
@@ -7759,6 +7817,7 @@ phy_ac_tpc_update_olpc_cal(phy_type_tpc_ctx_t *tpc_ctx, bool set, bool dbg)
 			 */
 			cache = &ctx->u.acphy_cache;
 			cache->olpc_caldone = set;
+			tpci->olpc_mode_caldone = set;
 			wlc_phy_set_tssisens_lim_acphy(pi, tpci->ti->data->txpwroverride);
 			wlapi_suspend_mac_and_wait(pi->sh->physhim);
 			/* Toggle Power Control to save off base index */

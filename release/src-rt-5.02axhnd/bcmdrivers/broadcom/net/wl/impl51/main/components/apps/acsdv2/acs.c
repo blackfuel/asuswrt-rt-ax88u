@@ -360,6 +360,7 @@ acs_start(char *name, acs_chaninfo_t *c_info)
 
 	ret = wl_ioctl(name, WLC_GET_INSTANCE, &unit, sizeof(unit));
 	acs_snprintf(prefix, sizeof(prefix), "wl%d_", unit);
+	c_info->unit = unit;
 
 	/* check radio */
 	if (nvram_match(strcat_r(prefix, "radio", tmp), "0")) {
@@ -576,6 +577,13 @@ bool acs_check_for_hp_chan(acs_chaninfo_t *c_info, int bw)
 	ch_candidate_t* candi;
 	bool ret = FALSE;
 	candi = c_info->candidate[bw];
+#if 0
+	acs_rsi_t *rsi = &c_info->rs_info;
+
+	if (WL_BW_CAP_160MHZ(rsi->bw_cap))
+#endif
+		return FALSE;
+
 	for (i = 0; i < c_info->c_count[bw]; i++) {
 		if ((!candi[i].valid) || (candi[i].is_dfs)) {
 			continue;
@@ -939,7 +947,7 @@ acs_update_dyn160_status(acs_chaninfo_t * c_info)
 int acs_tx_idle_check(acs_chaninfo_t *c_info)
 {
 	uint timer = c_info->acs_cs_scan_timer;
-	time_t now = time(NULL);
+	time_t now = uptime();
 	char cntbuf[ACSD_WL_CNTBUF_SIZE];
 	wl_cnt_info_t *cntinfo;
 	const wl_cnt_wlc_t *wlc_cnt;
@@ -1313,7 +1321,7 @@ acs_get_traffic_info(acs_chaninfo_t * c_info, acs_traffic_info_t *t_info)
 		goto exit;
 	}
 
-	t_info->timestamp = time(NULL);
+	t_info->timestamp = uptime();
 	t_info->txbyte = wlc_cnt->txbyte;
 	t_info->rxbyte = wlc_cnt->rxbyte;
 	t_info->txframe = wlc_cnt->txframe;
@@ -1350,7 +1358,7 @@ acs_get_video_sta_traffic_info(acs_chaninfo_t * c_info, acs_traffic_info_t *t_in
 		total.txframe = total.txframe + dtoh32(sta->tx_tot_pkts);
 		total.rxframe = total.rxframe + dtoh32(sta->rx_tot_pkts);
 	}
-	t_info->timestamp = time(NULL);
+	t_info->timestamp = uptime();
 	t_info->txbyte = total.txbyte;
 	t_info->rxbyte = total.rxbyte;
 	t_info->txframe = total.txframe;
@@ -1402,7 +1410,7 @@ int
 acs_activity_update(acs_chaninfo_t * c_info)
 {
 	acs_activity_info_t *acs_act = &c_info->acs_activity;
-	time_t now = time(NULL);
+	time_t now = uptime();
 	acs_traffic_info_t t_curr;
 	acs_traffic_info_t *t_prev = &acs_act->prev_bss_traffic;
 	acs_traffic_info_t *t_accu_diff = &acs_act->accu_diff_bss_traffic;

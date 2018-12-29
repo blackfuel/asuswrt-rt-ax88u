@@ -43,7 +43,7 @@
  *
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
- * $Id: km_key.c 765564 2018-07-09 07:13:20Z $
+ * $Id: km_key.c 767108 2018-08-28 12:23:52Z $
  */
 
 #include "km_key_pvt.h"
@@ -380,7 +380,11 @@ int wlc_key_prep_tx_mpdu(wlc_key_t *key, void *pkt, d11txhdr_t *txd)
 		/* HW encryption, default */
 		if (RATELINKMEM_ENAB(KEY_PUB(key)) && txd) {
 			d11txh_rev128_t *rev128_txh = &txd->rev128;
-			rev128_txh->MacControl_0 |= D11REV128_TXC_ENC;
+			if (WLC_KEY_IN_HW(&key->info)) {
+				rev128_txh->MacControl_0 |= D11REV128_TXC_ENC;
+			} else { /* Since SW encryption, avoid HW encryptor */
+				rev128_txh->MacControl_0 &= ~D11REV128_TXC_ENC;
+			}
 		}
 
 		/* ensure we have iv */
@@ -725,6 +729,23 @@ done:
 			if (!km_allow_unencrypted(KEY_KM(key), &key->info, scb,
 				hdr, qc, body, body_len, pkt)) {
 				KEY_LOG_DECL(char eabuf[ETHER_ADDR_STR_LEN]);
+				if (SCB_LEGACY_WDS(scb)) {
+					uint32 wpa_auth;
+					wlc_bsscfg_t *bsscfg = NULL;
+					bsscfg = SCB_BSSCFG(scb);
+					KM_DBG_ASSERT(bsscfg != NULL);
+					wpa_auth = bsscfg->WPA_auth;
+					if ((wpa_auth != WPA_AUTH_DISABLED) &&
+							(key->info.algo != CRYPTO_ALGO_OFF)) {
+						KM_DBG_ASSERT(pkt != NULL);
+						km_null_key_deauth(KEY_KM(key),
+							WLPKTTAGSCBGET(pkt), pkt);
+						km_notify(KEY_KM(key),
+							WLC_KEYMGMT_NOTIF_DECODE_ERROR,
+							NULL, NULL, key, pkt);
+					}
+				}
+
 				WLCNTINCR(KEY_CNT(key)->rxbadproto);
 				WLCNTINCR(KEY_CNT(key)->wepexcluded);
 				if (ETHER_ISMULTI(&hdr->a1))

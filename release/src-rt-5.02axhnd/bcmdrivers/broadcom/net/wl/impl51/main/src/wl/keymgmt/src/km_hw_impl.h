@@ -43,7 +43,7 @@
  *
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
- * $Id: km_hw_impl.h 761291 2018-05-07 14:08:10Z $
+ * $Id: km_hw_impl.h 766718 2018-08-10 07:36:23Z $
  */
 
 #ifndef _km_hw_impl_h_

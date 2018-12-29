@@ -65,7 +65,6 @@
 #include <wlc_key.h>
 #include <wlc_bsscfg.h>
 #include <wlc_channel.h>
-//#include <wlc_tx.h>
 #include <wlc_scandb.h>
 #include <wlc.h>
 #include <phy_ac.h>

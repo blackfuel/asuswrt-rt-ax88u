@@ -343,7 +343,7 @@ acs_dfsr_chanspec_update(dfsr_context_t *ctx, chanspec_t channel, const char *ca
 	ACSD_DFSR("Switch to channel 0x%4x (%s) requested by %s\n", channel, wf_chspec_ntoa(channel, chanspecbuf), caller);
 
 	if (channel != ctx->channel && (ctx->channel != 0)) {
-		time_t now = time(0);
+		time_t now = uptime();
 
 		ACSD_DFSR("Switching to chanspec 0x%4x (%s), switch count so far %u.\n", channel, wf_chspec_ntoa(channel, chanspecbuf),
 			ctx->switch_count);
@@ -404,7 +404,7 @@ acs_dfsr_counter_update(dfsr_context_t *ctx, char *if_name)
 	char cntbuf[ACSD_WL_CNTBUF_SIZE];
 	wl_cnt_info_t *cntinfo;
 	const wl_cnt_wlc_t *wlc_cnt;
-	time_t now = time(0);
+	time_t now = uptime();
 
 	if (acs_get_dfsr_counters(if_name, cntbuf) < 0) {
 		ACSD_DFSR("Failed to fetch interface counters for '%s'\n", if_name);

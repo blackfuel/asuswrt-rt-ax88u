@@ -245,8 +245,10 @@ static const struct mfg_btn_s {
 	{ BTN_EJUSB1,	"EJECT USB1",	"btn_ejusb_btn1", NULL },
 	{ BTN_EJUSB2,	"EJECT USB2",	"btn_ejusb_btn2", NULL },
 #endif
+#ifndef RTAC68U
 #if defined(RTCONFIG_LED_BTN)
 	{ BTN_LED,	"LED ON/OFF", 	"btn_led", NULL },
+#endif
 #endif
 #if defined(RTCONFIG_TURBO_BTN)
 	{ BTN_TURBO,	"TURBO", 	"btn_turbo", NULL },
@@ -363,7 +365,7 @@ void led_control_normal(void)
 #if !defined(RTCONFIG_CONCURRENTREPEATER)
 	led_control(LED_POWER, LED_ON);
 #endif
-#ifdef RTCONFIG_LOGO_LED
+#if defined(RTCONFIG_LOGO_LED) && !defined(GTAX11000)
 	led_control(LED_LOGO, LED_ON);
 #endif
 
@@ -2160,34 +2162,20 @@ static int handle_btn_in_mfg(void)
 	}
 #endif
 
-#if defined(RTCONFIG_TURBO_BTN) && !defined(RTCONFIG_QCA)
-	if (button_pressed(BTN_TURBO))
-	{
-		TRACE_PT("button TURBO pressed\n");
-		nvram_set("btn_turbo", "1");
-	}
-#endif
-
-#ifdef RTCONFIG_LED_BTN /* currently for RT-AC68U only */
-#if defined(RTAC3200) || defined(RTCONFIG_BCM_7114) || defined(HND_ROUTER) || defined(GTAC9600)
-	if (!button_pressed(BTN_LED))
-#elif defined(RTAC68U)
+#if defined(RTAC68U) && defined(RTCONFIG_LED_BTN)
 	if (is_ac66u_v2_series())
 		;
 	else if (((!nvram_match("cpurev", "c0") || nvram_get_int("PA") == 5023) && button_pressed(BTN_LED)) ||
 		   (nvram_match("cpurev", "c0") && nvram_get_int("PA") != 5023 && !button_pressed(BTN_LED)))
-#endif
 	{
 		TRACE_PT("button LED pressed\n");
 		nvram_set("btn_led", "1");
 	}
-#if defined(RTAC68U)
 	else if (!nvram_match("cpurev", "c0") || nvram_get_int("PA") == 5023)
 	{
 		TRACE_PT("button LED released\n");
 		nvram_set("btn_led", "0");
 	}
-#endif
 #endif
 
 #ifdef RTCONFIG_SWMODE_SWITCH
@@ -2465,6 +2453,7 @@ static inline void __handle_led_onoff_button(int led_onoff)
 	nvram_set_int("AllLED", !!led_onoff);
 #if defined(RTCONFIG_RGBLED)
 	nvram_set_int("aurargb_enable", !!led_onoff);
+	nvram_commit();	
 	start_aurargb();
 #endif
 	if (led_onoff) {
@@ -2509,6 +2498,7 @@ static inline void __handle_led_onoff_button(int led_onoff)
 	nvram_set_int("AllLED", !!led_onoff);
 #if defined(RTCONFIG_RGBLED)
 	nvram_set_int("aurargb_enable", !!led_onoff);
+	nvram_commit();
 	start_aurargb();
 #endif
 	if (led_onoff) {
@@ -2615,7 +2605,11 @@ static inline void handle_turbo_button(void)
 	/* If boost mode changed, update boost LED based on old status of selected mode. */
 	if (boost_mode != boost_mode_old) {
 		boost_mode_old = boost_mode;
+#ifdef GTAX11000 
+		led_control(LED_LOGO, (!inhibit_led_on() && g_boost_status[boost_mode])? LED_ON : LED_OFF);
+#else
 		turbo_led_control((!inhibit_led_on() && g_boost_status[boost_mode])? LED_ON : LED_OFF);
+#endif
 	}
 
 #if defined(RTCONFIG_RGBLED)
@@ -2646,6 +2640,7 @@ static inline void handle_turbo_button(void)
 #if defined(RTCONFIG_RGBLED)
 	case BOOST_AURA_RGB_SW:
 		nvram_set_int("aurargb_enable", g_boost_status[boost_mode]);
+		nvram_commit();
 		toggle_aura_rgb_mode(g_boost_status[boost_mode]);
 		break;
 #endif
@@ -2659,8 +2654,11 @@ static inline void handle_turbo_button(void)
 		__handle_led_onoff_button(g_boost_status[boost_mode]);
 		break;
 	}
-
+#ifdef GTAX11000 
+	led_control(LED_LOGO, (!inhibit_led_on() && g_boost_status[boost_mode])? LED_ON : LED_OFF);
+#else
 	turbo_led_control((!inhibit_led_on() && g_boost_status[boost_mode])? LED_ON : LED_OFF);
+#endif
 }
 #else
 static inline void handle_turbo_button(void) { }
@@ -3001,6 +2999,9 @@ void btn_check(void)
 	if (!nvram_get_int("wlready")) return;
 #endif
 
+	if (!nvram_match("x_Setting", "1"))
+		goto dowps;
+
 #if defined(RTCONFIG_WIRELESS_SWITCH) && defined(RTCONFIG_QCA)
 	if (wifi_sw_old != button_pressed(BTN_WIFI_SW))
 	{
@@ -3190,7 +3191,7 @@ void btn_check(void)
 		LED_status_changed = 1;
 		LED_status_on = 0;
 	}
-	else if (!LED_status &&
+	else if (LED_status &&
 	    (LED_status != LED_status_old))
 	{
 		LED_status_changed = 1;
@@ -3216,7 +3217,7 @@ void btn_check(void)
 		else
 			nvram_set_int("AllLED", 0);
 #elif defined(RTAC3200) || defined(RTCONFIG_BCM_7114) || defined(HND_ROUTER)
-		if (!LED_status && (LED_status != LED_status_old)) {
+		if (LED_status && (LED_status != LED_status_old)) {
 			if (LED_status_on)
 				nvram_set_int("AllLED", 1);
 			else
@@ -3363,6 +3364,7 @@ void btn_check(void)
 #endif
 #endif	/* RTCONFIG_LED_BTN */
 
+dowps:
 #if defined(RTCONFIG_BCMWL6) && defined(RTCONFIG_PROXYSTA)
 	if ((psta_exist() || psr_exist())
 		&& !dpsr_mode()
@@ -7385,6 +7387,11 @@ void watchdog(int sig)
 #endif
 #endif
 
+#ifdef RTCONFIG_HND_ROUTER_AX
+	if (nvram_get_int("dfs_cac_check"))
+		dfs_cac_check();
+#endif
+
 	if (watchdog_period)
 		return;
 
@@ -7425,6 +7432,9 @@ wdp:
 	networkmap_check();
 	httpd_check();
 	dnsmasq_check();
+#ifdef RTCONFIG_NEW_USER_LOW_RSSI
+	roamast_check();
+#endif
 #ifdef RTAC87U
 	qtn_module_check();
 #endif

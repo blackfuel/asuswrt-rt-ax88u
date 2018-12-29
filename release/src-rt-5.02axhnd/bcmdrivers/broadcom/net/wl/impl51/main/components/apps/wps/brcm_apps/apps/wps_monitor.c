@@ -42,7 +42,7 @@
  * OR U.S. $1, WHICHEVER IS GREATER. THESE LIMITATIONS SHALL APPLY
  * NOTWITHSTANDING ANY FAILURE OF ESSENTIAL PURPOSE OF ANY LIMITED REMEDY.
  *
- * $Id: wps_monitor.c 749115 2018-02-27 20:25:46Z $
+ * $Id: wps_monitor.c 766036 2018-07-23 22:20:10Z $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -329,7 +329,7 @@ int wps_escan_timeout_handler(unsigned int timout_state)
 		return ret;
 }
 
-#endif // endif
+#endif /* BCNWPSAPSTA */
 static int
 wps_process_msg(char *buf, int buflen, wps_hndl_t *hndl)
 {
@@ -846,6 +846,10 @@ void
 wps_stophandler(int sig)
 {
 	wps_flags |= WPSM_WKSP_FLAG_SHUTDOWN;
+#ifdef BCA_CPEROUTER
+	/* prevent the file not killed in time for next restart */
+	kill_wps_pid_file();
+#endif // endif
 	return;
 }
 
@@ -854,6 +858,10 @@ void
 wps_restarthandler(int sig)
 {
 	wps_flags |= WPSM_WKSP_FLAG_SET_RESTART | WPSM_WKSP_FLAG_SHUTDOWN;
+#ifdef BCA_CPEROUTER
+	/* prevent the file not killed in time for next restart */
+	kill_wps_pid_file();
+#endif // endif
 	return;
 }
 

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_noise.c 766181 2018-07-26 08:21:05Z $
+ * $Id: phy_ac_noise.c 767447 2018-09-11 13:22:06Z $
  */
 
 #include <phy_cfg.h>
@@ -690,6 +690,9 @@ phy_ac_noise_set_mode(phy_type_noise_ctx_t *ctx, int wanted_mode, bool init)
 		if (wanted_mode == INTERFERE_NONE) {
 #ifndef WLC_DISABLE_ACI
 			wlc_phy_desense_aci_reset_params_acphy(pi, TRUE, TRUE, TRUE);
+
+			/* Run noise-cal after reset of desense */
+			phy_ac_rxgcrs_cal(pi->u.pi_acphy->rxgcrsi, FALSE);
 #endif // endif
 			wlc_phy_hwaci_mitigation_enable_acphy(pi, HWACI_DISABLE, FALSE);
 			phy_ac_chanmgr_hwobss(pi->u.pi_acphy->chanmgri, FALSE);
@@ -806,7 +809,8 @@ phy_ac_noise_dump(phy_type_noise_ctx_t *ctx, struct bcmstrbuf *b)
 		txop = noise_info->aci->txop;
 	}
 
-	bw = CHSPEC_BW_LE20(pi->radio_chanspec) ? 20 : (CHSPEC_IS40(pi->radio_chanspec) ? 40 : 80);
+	bw = CHSPEC_BW_LE20(pi->radio_chanspec) ? 20 : CHSPEC_IS40(pi->radio_chanspec) ? 40 :
+	    CHSPEC_IS80(pi->radio_chanspec) ? 80 : 160;
 
 	/* Get total desense based on aci & bt */
 	desense = phy_ac_rxgcrs_get_desense(pi_ac->rxgcrsi, TOTAL_DESENSE);
@@ -4765,10 +4769,8 @@ static void phy_ac_noise_preempt_postfilter_reg_tbl(phy_ac_noise_info_t *ni, boo
 		{ACPHY_PREMPT_cck_nominal_clip_th_hipwr0(pi->pubpi->phy_rev), 0xffff},
 		{ACPHY_PREMPT_ofdm_nominal_clip_th0(pi->pubpi->phy_rev), 0x4c00},
 		{ACPHY_PREMPT_cck_nominal_clip_th0(pi->pubpi->phy_rev), 0x6000},
-		{ACPHY_PREMPT_ofdm_large_gain_mismatch_th0(pi->pubpi->phy_rev), 0xc},
-		{ACPHY_PREMPT_cck_large_gain_mismatch_th0(pi->pubpi->phy_rev), 0xf},
-		{ACPHY_PREMPT_ofdm_low_power_mismatch_th0(pi->pubpi->phy_rev), 0x18},
-		{ACPHY_PREMPT_cck_low_power_mismatch_th0(pi->pubpi->phy_rev), 0x18}};
+		{ACPHY_PREMPT_ofdm_max_gain_mismatch_pkt_rcv_th0(pi->pubpi->phy_rev), 0x12},
+		{ACPHY_PREMPT_cck_max_gain_mismatch_pkt_rcv_th0(pi->pubpi->phy_rev), 0xe}};
 
 	if (enable) {
 		for (k = 0; k < ARRAYSIZE(ppr_preempt_phyreg_vals); k++) {
@@ -4787,7 +4789,7 @@ static void phy_ac_noise_preempt_postfilter_reg_tbl(phy_ac_noise_info_t *ni, boo
 		}
 
 		if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
-			for (k = 0; k < ARRAYSIZE(ppr_preempt_phyreg_vals33); k++) {
+			for (k = 0; k < ARRAYSIZE(ppr_preempt_phyreg_vals47); k++) {
 				phy_utils_write_phyreg(pi, (ppr_preempt_phyreg_vals47[k][0] |
 				ACPHY_REG_BROADCAST(pi)),
 				ppr_preempt_phyreg_vals47[k][1]);
@@ -5374,11 +5376,12 @@ phy_ac_noise_preempt(phy_ac_noise_info_t *ni, bool enable_preempt, bool EnablePo
 			ACPHY_REG_LIST_EXECUTE(pi);
 		}
 	}
+
 	if (D11REV_GE(pi->sh->corerev, 47)) {
-		if (READ_PHYREGFLD(pi, PktAbortCtrl, PktAbortEn)) {
-			ni->data->pktabortctl = READ_PHYREG(pi, PktAbortCtrl);
-		}
-		phy_btcx_set_mode((wlc_phy_t *) pi, wlapi_bmac_btc_mode_get(pi->sh->physhim));
+		ni->data->pktabortctl = READ_PHYREG(pi, PktAbortCtrl);
+
+		/* Don't call this unless this war is ready/tested */
+		//phy_btcx_set_mode((wlc_phy_t *) pi, wlapi_bmac_btc_mode_get(pi->sh->physhim));
 	}
 }
 

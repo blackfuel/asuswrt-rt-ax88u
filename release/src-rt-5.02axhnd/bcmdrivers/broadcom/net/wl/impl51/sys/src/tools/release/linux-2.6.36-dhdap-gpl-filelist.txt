@@ -46,7 +46,7 @@
 #
 # <<Broadcom-WL-IPTag/Proprietary:>>
 #
-# $Id: linux-2.6.36-dhdap-gpl-filelist.txt 764377 2018-05-25 03:02:33Z $
+# $Id: linux-2.6.36-dhdap-gpl-filelist.txt 767441 2018-09-11 11:49:11Z $
 #
 # NOTE: Wildcards are NOT allowed in any filelist. List actual file/dir names
 
@@ -39202,6 +39202,7 @@ main/components/opensource/libxml2
 main/components/opensource/libpcap_winpcap
 main/components/opensource/jsonc
 main/components/opensource/jquerylib
+main/components/opensource/router_tools
 main/components/opensource/curl/Makefile
 main/components/opensource/curl/curl-7.35.0/acinclude.m4
 main/components/opensource/curl/curl-7.35.0/aclocal.m4
@@ -41220,11 +41221,20 @@ sys/src/include/bcmsrom_fmt.h
 sys/src/include/bcmsrom_tbl.h
 sys/src/include/spid.h
 sys/src/include/msf.h
+sys/src/wl/sys/wl_cfg80211.c
+sys/src/wl/sys/wl_cfg80211.h
+sys/src/wl/sys/wl_cfgp2p.c
+sys/src/wl/sys/wl_cfgp2p.h
+sys/src/wl/sys/wl_cfgvendor.c
+sys/src/wl/sys/wl_cfgvendor.h
 sys/src/wl/sys/wl_core.c
 sys/src/wl/sys/wl_core.h
 sys/src/wl/sys/wl_dbg.h
 sys/src/wl/sys/wldev_common.c
 sys/src/wl/sys/wldev_common.h
+sys/src/wl/sys/wl_feature.c
+sys/src/wl/sys/wl_linux_mon.c
+sys/src/wl/sys/wlc_types.h
 sys/src/common/include/proto/802.3.h
 sys/components/shared/proto/802.3.h
 sys/src/dhd/sys/dhd_common.c
@@ -41280,6 +41290,7 @@ sys/src/shared/nvram_ext.c
 sys/src/shared/linux_osl_priv.h
 sys/src/dhd/sys/dhd_cfg80211.c
 sys/src/dhd/sys/dhd_cfg80211.h
+sys/src/dhd/sys/dhd_cfg_vendor.c
 sys/src/dhd/sys/dhd_bus.h
 sys/src/dhd/sys/dhd_dbg.h
 sys/src/dhd/sys/dhd.h
@@ -41407,7 +41418,6 @@ sys/src/shared/rtecdc_43602a1.h
 sys/src/shared/rtecdc_43602a3.h
 sys/src/shared/rtecdc_4366c0.h
 sys/src/shared/rtecdc_4363c0.h
-sys/src/shared/rtecdc_43684a0.h
 sys/src/shared/rtecdc_43684b0.h
 sys/src/shared/rtecdc_router.h
 sys/src/shared/rtecdc_router.h.in

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_radio.c 765971 2018-07-20 17:29:17Z $
+ * $Id: phy_ac_radio.c 767762 2018-09-25 17:43:19Z $
  */
 
 #include <typedefs.h>
@@ -7984,7 +7984,8 @@ wlc_phy_radio20698_r_cal(phy_info_t *pi, uint8 mode)
 	/* value given here. Good for initial bringup. */
 	/* Mode 2 = Run rcal and use the return value in bandgap. Needs the external 10k */
 	/* resistor to be connected to GPAIO otherwise cal will return bogus value. */
-	uint8 rcal_valid, loop_iter, rcal_value;
+	uint8 rcal_valid, rcal_value;
+	uint16 loop_iter;
 
 	if (mode == 0) {
 		/* Use OTP stored rcal value */
@@ -8006,7 +8007,7 @@ wlc_phy_radio20698_r_cal(phy_info_t *pi, uint8 mode)
 
 		rcal_valid = 0;
 		loop_iter = 0;
-		while ((rcal_valid == 0) && (loop_iter <= 100)) {
+		while ((rcal_valid == 0) && (loop_iter <= 1000)) {
 			/* 1 ms delay wait time */
 			OSL_DELAY(1000);
 			rcal_valid = READ_RADIO_PLLREGFLD_20698(pi, RCAL_CFG_NORTH, 0, rcal_valid);
@@ -17549,6 +17550,10 @@ wlc_phy_radio20698_adc_cap_cal(phy_info_t *pi, uint8 adc)
 	uint16 adccapcal_Timeout;
 	uint16 bbmult = 0;
 
+	/* Local copy of phyrxchains & EnTx bits before overwrite */
+	uint8 enRx = 0;
+	uint8 enTx = 0;
+
 	int8 cap_cal_iterations_left;
 	uint8 cap_cal_status;
 	const uint8 CAP_CAL_SUCCESS = 1;
@@ -17556,6 +17561,10 @@ wlc_phy_radio20698_adc_cap_cal(phy_info_t *pi, uint8 adc)
 	phy_stf_data_t *stf_shdata = phy_stf_get_data(pi->stfi);
 
 	PHY_INFORM(("%s\n", __FUNCTION__));
+
+	/* Save and overwrite Rx and Tx chains */
+	wlc_phy_update_rxchains((wlc_phy_t *)pi, &enRx, &enTx,
+		stf_shdata->hw_phyrxchain, stf_shdata->hw_phytxchain);
 
 	/* WAR: Force RFSeq is needed to get rid of time-outs and set_tx_bbmult
 	 *      to get also the first time after a power cycle valid results
@@ -17567,7 +17576,7 @@ wlc_phy_radio20698_adc_cap_cal(phy_info_t *pi, uint8 adc)
 
 	/* Save AFE registers */
 	phy_ac_reg_cache_save(pi_ac, RADIOREGS_AFECAL);
-	FOREACH_ACTV_CORE(pi, stf_shdata->hw_phyrxchain, core) {
+	FOREACH_ACTV_CORE(pi, stf_shdata->phyrxchain, core) {
 
 		wlc_phy_radio20698_adc_cap_cal_setup(pi, core);
 		cap_cal_iterations_left = MAX_CAP_CAL_ITER;
@@ -17607,6 +17616,9 @@ wlc_phy_radio20698_adc_cap_cal(phy_info_t *pi, uint8 adc)
 	}
 	/* Restore AFE registers */
 	phy_ac_reg_cache_restore(pi_ac, RADIOREGS_AFECAL);
+
+	/* Restore Rx and Tx chains */
+	wlc_phy_restore_rxchains((wlc_phy_t *)pi, enRx, enTx);
 }
 
 static void

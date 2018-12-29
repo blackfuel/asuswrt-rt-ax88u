@@ -1046,6 +1046,8 @@ hwa_rxpath_dma_reclaim(struct hwa_dev *dev)
 int // Add rxcple workitems to pciedev directly.
 hwa_rxpath_queue_rxcomplete_fast(hwa_dev_t *dev, uint32 pktid)
 {
+	BCMPCIE_IPC_HPA_TEST(dev->pciedev, pktid,
+		BCMPCIE_IPC_PATH_RECEIVE, BCMPCIE_IPC_TRANS_REQUEST);
 	return pciedev_hwa_queue_rxcomplete_fast(dev->pciedev, pktid);
 }
 
@@ -1055,29 +1057,14 @@ hwa_rxpath_xmit_rxcomplete_fast(hwa_dev_t *dev)
 	PCIEDEV_XMIT_RXCOMPLETE(dev->pciedev);
 }
 
-void // free orig_lfrag's RPH before real cb
-hwa_rxpath_cancel_rx_pktfetch_fast(struct hwa_dev *dev, void *lfrag)
+#if defined(BCMPCIE_IPC_HPA)
+void /* A HWA wrap function to Test a PktId on entry and exit from dongle */
+hwa_rxpath_hpa_req_test(hwa_dev_t *dev, uint32 pktid)
 {
-	hwa_rxpost_hostinfo_t *rph;
-
-	rph = LBHWARXPKT(lfrag);
-
-	/* Set HWARXBMSUPPRESS to ignore RxBuffer id free to RxBM
-	 * after RxBM reset.
-	 */
-	PKTSETHWARXBMSUPPRESS(dev->osh, lfrag);
-#ifdef HWA_RXFILL_RXFREE_AUDIT_ENABLED
-	/* Do audit right away */
-	hwa_rxfill_rxfree_audit(dev, 0, (hwa_rxbuffer_t *)rph, FALSE);
-#endif /* HWA_RXFILL_RXFREE_AUDIT_ENABLED */
-
-	/* Set no rxcpl so that we don't double free it to Host in the real cb */
-	PKTSETNORXCPL(dev->osh, lfrag);
-
-	/* Free the host pktid right away */
-	hwa_rxpath_queue_rxcomplete_fast(dev, rph->hostinfo64.host_pktid);
-	hwa_rxpath_xmit_rxcomplete_fast(dev);
+	BCMPCIE_IPC_HPA_TEST(dev->pciedev, pktid,
+		BCMPCIE_IPC_PATH_RECEIVE, BCMPCIE_IPC_TRANS_REQUEST);
 }
+#endif // endif
 
 void // Flush all rxcpl workitmes from pciedev to host
 hwa_rxpath_flush_rxcomplete(hwa_dev_t *dev)
@@ -3451,16 +3438,6 @@ hwa_txpost_sendup(void *context, uintptr arg1, uintptr arg2, uint32 pkt_count, u
 	hwa_cfp_tx_info.pktlist_count = pkt_count;
 	pciedev_hwa_cfp_tx_enabled(dev->pciedev, head, &hwa_cfp_tx_info);
 #endif /* WLCFP */
-
-#ifdef WLSQS
-	/* Wl state may change after SQS programmed HWA txpost. So
-	 * wL may not be ready to receive frame at this point of time.
-	 * Drop frames in such cases and adjust v2r count.
-	 */
-	if (!sqs_flow_ready(dev->pciedev, flowid)) {
-		drop_pkt = TRUE;
-	}
-#endif // endif
 
 	/* Translate hwa_txpost_pkt_t 3a-SWPKT (44 Bytes) to lfrag */
 	pciedev_hwa_txpost_pkt2native(dev->pciedev, head, tail, pkt_count, total_octets,

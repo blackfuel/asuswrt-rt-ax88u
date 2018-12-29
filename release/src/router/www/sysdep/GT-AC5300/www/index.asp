@@ -273,7 +273,7 @@ function initial(){
 	var isIE6 = navigator.userAgent.search("MSIE 6") > -1;
 	if(isIE6)
 		alert("<#ALERT_TO_CHANGE_BROWSER#>");
-	
+
 	if(dualWAN_support && sw_mode == 1){
 		check_dualwan(wans_flag);
 	}
@@ -681,7 +681,7 @@ function disk_html(device){
 	if(device.usbPath == "3")
 		usb_css = "iconM2";
 	icon_html_code += '<a target="statusframe">\n';
-	if(based_modelid == "GT-AC5300" || based_modelid == "GT-AC9600" || based_modelid == "GT-AX11000")
+	if(rog_support)
 		icon_html_code += '<div id="ring_USBdisk_'+device.usbPath+'" style="display:none;z-index:1;">\n';
 	else
 		icon_html_code += '<div id="ring_USBdisk_'+device.usbPath+'" class=' + usb_css + ' style="display:none;z-index:1;">\n';
@@ -989,7 +989,7 @@ function check_status(_device){
 	document.getElementById('iconUSBdisk_'+diskOrder).style.backgroundPosition = '1px -4px';
 	document.getElementById('iconUSBdisk_'+diskOrder).style.backgroundSize = "100%";
 
-	if(based_modelid != "GT-AC5300" && based_modelid != "GT-AC9600" && based_modelid != "GT-AX11000")
+	if(!rog_support)
 		document.getElementById('ring_USBdisk_'+diskOrder).style.backgroundImage = "url(/images/New_ui/networkmap/white_04.gif)";
 	
 	document.getElementById('ring_USBdisk_'+diskOrder).style.display = "";
@@ -1855,7 +1855,7 @@ function check_usb3(){
 	if(based_modelid == "DSL-AC68U" || based_modelid == "RT-AC3200" || based_modelid == "RT-AC87U" || based_modelid == "RT-AC68U" || based_modelid == "RT-AC68A" || based_modelid == "RT-AC56S" || based_modelid == "RT-AC56U" || based_modelid == "RT-AC55U" || based_modelid == "RT-AC55UHP" || based_modelid == "RT-N18U" || based_modelid == "RT-AC88U" || based_modelid == "RT-AC86U" || based_modelid == "AC2900" || based_modelid == "RT-AC3100" || based_modelid == "RT-AC5300" || based_modelid == "RP-AC68U" || based_modelid == "RT-AC58U"  || based_modelid == "RT-AC82U" || based_modelid == "RT-AC85U" || based_modelid == "RT-AC65U"|| based_modelid == "4G-AC68U"){
 		document.getElementById('usb_text_1').innerHTML = "USB 3.0";
 	}
-	else if(based_modelid == "RT-AC88Q" || based_modelid == "RT-N65U" || based_modelid == "GT-AC5300"){
+	else if(based_modelid == "RT-AC88Q" || based_modelid == "RT-N65U" || based_modelid == "GT-AC5300" || based_modelid == "GT-AC9600" || based_modelid == "GT-AX11000"){
 		document.getElementById('usb_text_1').innerHTML = "USB 3.0";
 		document.getElementById('usb_text_2').innerHTML = "USB 3.0";
 	}
@@ -1863,10 +1863,6 @@ function check_usb3(){
 		document.getElementById('usb_text_1').innerHTML = "USB 3.0";
 		document.getElementById('usb_text_2').innerHTML = "USB 3.0";
 		document.getElementById('usb_text_3').innerHTML = "M.2 SSD";
-	}
-	else if(based_modelid == "GT-AX96U" || based_modelid == "GT-AC9600" || based_modelid == "GT-AX11000"){
-		document.getElementById('usb_text_1').innerHTML = "USB 3.1";
-		document.getElementById('usb_text_2').innerHTML = "USB 3.1";
 	}
 }
 
@@ -2122,11 +2118,17 @@ function closeClientDetailView() {
 function check_wireless(){
 	var temp = "";
 	//check 2.4 GHz
+	if (isSwMode('mb')) {
+		wl0_radio = '0';
+	}
 	temp = (wl0_radio == "1") ? "wl0_icon_on" : "wl0_icon_off";
 	$("#wl0_icon").addClass(temp);
 
 	//check 5 GHz-1
 	if(band5g_support){
+		if (isSwMode('mb')) {
+			wl1_radio = '0';
+		}
 		temp = (wl1_radio == "1") ? "wl1_icon_on" : "wl1_icon_off";
 		if(band5g2_support){
 			temp = (wl1_radio == "1") ? "wl1_1_icon_on" : "wl1_1_icon_off";
@@ -2138,6 +2140,9 @@ function check_wireless(){
 	
 	//check 5 GHz-2
 	if(band5g2_support){
+		if (isSwMode('mb')) {
+			wl2_radio = '0';
+		}
 		temp = (wl2_radio == "1") ? "wl2_icon_on" : "wl2_icon_off";
 		$("#wl2_icon").show();
 		$("#wl2_icon").addClass(temp);
@@ -2670,7 +2675,7 @@ function notice_apply(){
 						<div style="padding:5px"><strong id="secondary_status"></strong></div>
 					</td>
 					<!--== single WAN ==-->
-					<td id="single_wan_icon" align="right" class="NM_radius_left" style="display:none;height:180px" onclick="showstausframe('Internet');">
+					<td id="single_wan_icon" align="right" class="NM_radius_left" style="height:180px" onclick="showstausframe('Internet');">
 						<a href="/device-map/internet.asp" target="statusframe"><div id="iconInternet" onclick="clickEvent(this);"></div></a>
 					</td>
 					<td id="single_wan_status" colspan="2" class="NM_radius_right" onclick="" style="padding:5px;cursor:auto;width:180px;height:170px">

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_rstr.c 752074 2018-03-14 19:56:20Z $
+ * $Id: phy_rstr.c 766697 2018-08-10 00:10:49Z $
  */
 
 #include <typedefs.h>
@@ -491,6 +491,8 @@ const char BCMATTACHDATA(rstr_swctrl_to_bt_in_coex)[]          = "swctrl_to_bt_i
 const char BCMATTACHDATA(rstr_olpc_thresh)[]                   = "olpc_thresh";
 const char BCMATTACHDATA(rstr_olpc_thresh2g)[]                 = "olpc_thresh2g";
 const char BCMATTACHDATA(rstr_olpc_thresh5g)[]                 = "olpc_thresh5g";
+const char BCMATTACHDATA(rstr_olpc_thresh2g_srom)[]            = "olpc_2g_th";
+const char BCMATTACHDATA(rstr_olpc_thresh5g_srom)[]            = "olpc_5g_th";
 const char BCMATTACHDATA(rstr_olpc_tempslope2g)[]              = "olpc_tempslope2g";
 const char BCMATTACHDATA(rstr_olpc_tempslope5g)[]              = "olpc_tempslope5g";
 const char BCMATTACHDATA(rstr_olpc_anchor2g)[]                 = "olpc_anchor2g";

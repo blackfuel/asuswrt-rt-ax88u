@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_misc.c 742168 2018-01-19 14:50:55Z $
+ * $Id: phy_misc.c 767248 2018-08-31 20:55:03Z $
  */
 
 #include <phy_cfg.h>
@@ -527,6 +527,9 @@ wlc_phy_hold_upd(wlc_phy_t *pih, mbool id, bool set)
 	if (id & PHY_HOLD_FOR_SCAN) {
 		phy_txiqlocal_scanroam_cache(pi, set);
 		phy_rxiqcal_scanroam_cache(pi, set);
+
+		// Call dc-cal on end of scan, as we don't save/restore dccal coeffs
+		if (!set) phy_chanmgr_dccal_force(pi);
 	}
 }
 

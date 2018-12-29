@@ -669,6 +669,7 @@ typedef struct acs_chaninfo {
 	uint8 dfs_reentry;
 	bool bgdfs160;			/* bgdfs is 160Mhz capable */
 	bool wet_enabled;
+	int unit;
 } acs_chaninfo_t;
 
 #define ACS_DFSR_CTX(ci) ((ci)->acs_dfsr)

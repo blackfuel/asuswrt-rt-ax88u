@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_cache.c 765341 2018-06-28 18:16:56Z $
+ * $Id: phy_ac_cache.c 767859 2018-09-28 01:49:56Z $
  */
 
 #include <phy_ac.h>
@@ -718,7 +718,8 @@ phy_ac_reg_cache_parse(phy_info_acphy_t *pi_ac, uint16 id, bool populate)
 		RADIO_REG_20698(pi, IQCAL_GAIN_RFB, 0),
 		RADIO_REG_20698(pi, TXDAC_REG0, 0),
 		RADIO_REG_20698(pi, TXDAC_REG1, 0),
-		RADIO_REG_20698(pi, TXDAC_REG3, 0)
+		RADIO_REG_20698(pi, TXDAC_REG3, 0),
+		RADIO_REG_20698(pi, TX2G_MIX_REG2, 0)
 	};
 
 	uint16 radioregs_rxiqcal_20698_majorrev47[] = {
@@ -745,7 +746,9 @@ phy_ac_reg_cache_parse(phy_info_acphy_t *pi_ac, uint16 id, bool populate)
 		RADIO_REG_20698(pi, RX5G_REG1, 0),
 		RADIO_REG_20698(pi, RX5G_REG2, 0),
 		RADIO_REG_20698(pi, RX5G_REG4, 0),
-		RADIO_REG_20698(pi, RX5G_REG5, 0)
+		RADIO_REG_20698(pi, RX5G_REG5, 0),
+		RADIO_REG_20698(pi, LPF_REG6, 0),
+		RADIO_REG_20698(pi, TX2G_MIX_REG2, 0)
 	};
 
 	uint16 radioregs_afecal_20698_majorrev47[] = {
@@ -1386,6 +1389,7 @@ wlc_phy_cal_cache_restore_acphy(phy_type_cache_ctx_t * cache_ctx)
 	if (!suspend) {
 		wlapi_enable_mac(pi->sh->physhim);
 	}
+	phy_ac_rxcgrs_restore_force_crsmin(pi);
 
 #ifdef BCMDBG
 	PHY_CAL(("wl%d: %s: Restored values for chanspec 0x%x are:\n", pi->sh->unit,
@@ -1513,7 +1517,7 @@ wlc_phy_cal_dump_acphy(phy_type_cache_ctx_t * cache_ctx, struct bcmstrbuf *b)
 		if (ACMAJORREV_47_51(pi->pubpi->phy_rev))
 			num_samps = 213;
 		bcm_bprintf(b, "DC-cal:\n");
-		FOREACH_CORE(pi, core) {
+		FOREACH_ACTV_CORE(pi, coremask, core) {
 			cumdci = 0;
 			cumdcq = 0;
 			for (sampnum = 0; sampnum < num_samps; sampnum++) {

@@ -2162,6 +2162,19 @@ int nvram_set_double(const char *key, double value)
 	return nvram_set(key, nvramstr);
 }
 
+int nvram_get_hex(const char *key)
+{
+	return strtol(nvram_safe_get(key), NULL, 16);
+}
+
+int nvram_set_hex(const char *key, int value)
+{
+	char nvramstr[16];
+
+	snprintf(nvramstr, sizeof(nvramstr), "%x", value);
+	return nvram_set(key, nvramstr);
+}
+
 #if defined(RTCONFIG_SSH) || defined(RTCONFIG_HTTPS)
 int nvram_get_file(const char *key, const char *fname, int max)
 {

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: wps_linux_main.c 763182 2018-05-17 11:13:17Z $
+ * $Id: wps_linux_main.c 766036 2018-07-23 22:20:10Z $
  */
 #include <stdio.h>
 #include <linux/types.h>
@@ -92,7 +92,11 @@ typedef u_int8_t u8;
 #include <wps_ui.h>
 #include <wps_wps.h>
 #include <wps_wl.h>
-
+#ifdef BCA_CPEROUTER
+extern void brcm_get_lock(char *name, int timeout);
+extern void brcm_release_lock(char *name);
+extern void cperouter_restart_wlan(void);
+#endif /* BCA_CPEROUTER */
 #define WPSM_PID_FILE_PATH	"/tmp/wps_monitor.pid"
 
 extern void RAND_linux_init();
@@ -110,8 +114,12 @@ wps_osl_restart_wl()
 	WpsSleep(1);
 
 #if 0
+#ifdef BCA_CPEROUTER
+	cperouter_restart_wlan();
+#else
 	/* restart all process */
 	system("kill -1 1");
+#endif /* BCA_CPEROUTER */
 #else
 	/* restart wps only */
 	system("restart_wireless");
@@ -673,6 +681,9 @@ wps_set_wsec(int ess_id, char *wps_ifname, void *credential, int mode)
 		TUTRACE((TUTRACE_ERR, "wps_set_wsec: Invaild argument\n"));
 		return -1;
 	}
+#ifdef BCA_CPEROUTER
+	brcm_get_lock("wps", 200);
+#endif /* BCA_CPEROUTER */
 #ifdef BCMWPSAPSTA
 	/* only support on URE WRE mode */
 	snprintf(tmp, sizeof(tmp), "%s_ure_mode", wps_ifname);
@@ -687,6 +698,9 @@ wps_set_wsec(int ess_id, char *wps_ifname, void *credential, int mode)
 
 		value = wps_get_conf("wps_pbc_ap_index");
 		if (value == NULL) {
+#ifdef BCA_CPEROUTER
+			brcm_release_lock("wps");
+#endif /* BCA_CPEROUTER */
 			TUTRACE((TUTRACE_ERR, "wps_set_wsec: Cannot get UPnP instance\n"));
 			return -1;
 		}
@@ -713,7 +727,11 @@ wps_set_wsec(int ess_id, char *wps_ifname, void *credential, int mode)
 		sprintf(tmp, "ess%d_ap_index", ess_id);
 		value = wps_get_conf(tmp);
 		if (value == NULL) {
+#ifdef BCA_CPEROUTER
+			brcm_release_lock("wps");
+#endif /* BCA_CPEROUTER */
 			TUTRACE((TUTRACE_ERR, "wps_set_wsec: Cannot get UPnP instance\n"));
+
 			return -1;
 		}
 
@@ -773,7 +791,12 @@ wps_set_wsec(int ess_id, char *wps_ifname, void *credential, int mode)
 	/*
 	 * Do commit
 	 */
+#ifdef BCA_CPEROUTER
+	brcm_release_lock("wps");
+#else
+	/* for CPEROUTER, don't need commit */
 	nvram_commit();
+#endif /* BCA_CPEROUTER */
 
 	TUTRACE((TUTRACE_INFO, "wps: wsec configuraiton set completed\n"));
 	return 1;
@@ -1488,3 +1511,10 @@ main(int argc, char* argv[])
 
 	return 0;
 }
+#ifdef BCA_CPEROUTER
+void kill_wps_pid_file(void)
+{
+	/* Destroy pid file */
+	unlink(WPSM_PID_FILE_PATH);
+}
+#endif /* BCA_CPEROUTER */

@@ -289,7 +289,7 @@ acs_expire_scan_entry(acs_chaninfo_t *c_info, time_t limit)
 	acs_bss_info_entry_t **rootp = &c_info->acs_bss_info_q;
 
 	curptr = *rootp;
-	now = time(NULL);
+	now = uptime();
 
 	while (curptr) {
 		time_t diff = now - curptr->timestamp;
@@ -314,7 +314,7 @@ acs_expire_scan_entry(acs_chaninfo_t *c_info, time_t limit)
 int acs_ci_scan_check(acs_chaninfo_t *c_info)
 {
 	acs_scan_chspec_t* chspec_q = &c_info->scan_chspec_list;
-	time_t now = time(NULL);
+	time_t now = uptime();
 
 	/* no chan to scan */
 	if (chspec_q->count <= chspec_q->excl_count) {
@@ -366,7 +366,7 @@ int acs_ci_scan_finish_check(acs_chaninfo_t * c_info)
 
 	/* Check for end of scan: scanned all channels once */
 	if ((c_info->acs_ci_scan_count) && (!(--c_info->acs_ci_scan_count))) {
-		ACSD_INFO("acs_ci_scan_timeout stop CI scan: now %u \n", (uint)time(NULL));
+		ACSD_INFO("acs_ci_scan_timeout stop CI scan: now %u \n", (uint)uptime());
 		chspec_q->ci_scan_running = 0;
 	}
 
@@ -439,7 +439,7 @@ int acs_run_normal_ci_scan(acs_chaninfo_t *c_info)
 
 	if (!ret) {
 		acs_ci_scan_update_idx(scan_chspec_q, 1);
-		c_info->timestamp_acs_scan = time(NULL);
+		c_info->timestamp_acs_scan = uptime();
 		sleep_ms(ACS_CI_SCAN_DWELL * 5);
 		for (i = 0; i < 10; i++) {
 			ret = wl_ioctl(c_info->name, WLC_GET_CHANNEL, &ci, sizeof(channel_info_t));
@@ -509,7 +509,7 @@ acs_run_normal_cs_scan(acs_chaninfo_t *c_info)
 	memset(&ci, 0, sizeof(channel_info_t));
 	/* loop to check if cs scan is done, check for scan in progress */
 	if (!ret) {
-		c_info->timestamp_acs_scan = time(NULL);
+		c_info->timestamp_acs_scan = uptime();
 		c_info->timestamp_tx_idle = c_info->timestamp_acs_scan;
 		/* this time needs to be < 1000 to prevent mpc kicking in for 2nd radio */
 		sleep_ms(ACS_CS_SCAN_DWELL);
@@ -585,12 +585,12 @@ acs_run_escan(acs_chaninfo_t *c_info, uint8 scan_type)
 		tv.tv_usec = 0;
 		tv.tv_sec = 1;
 		err = acs_escan_prep_cs(c_info, &params->params, &params_size);
-		escan_timeout = time(NULL) + WL_CS_SCAN_TIMEOUT;
+		escan_timeout = uptime() + WL_CS_SCAN_TIMEOUT;
 	} else if (scan_type == ACS_SCAN_TYPE_CI) {
 		tv.tv_sec = 0;
 		tv.tv_usec = WL_CI_SCAN_TIMEOUT;
 		err = acs_escan_prep_ci(c_info, &params->params, &params_size);
-		escan_timeout = time(NULL) + 1;
+		escan_timeout = uptime() + 1;
 	} else {
 		ACSD_ERROR("%s Unknown scan type %d\n", c_info->name, scan_type);
 		return BCME_ERROR;
@@ -599,7 +599,7 @@ acs_run_escan(acs_chaninfo_t *c_info, uint8 scan_type)
 	params->version = htod32(ESCAN_REQ_VERSION);
 	params->action = htod16(WL_SCAN_ACTION_START);
 
-	srand((unsigned)time(NULL));
+	srand((unsigned)uptime());
 	params->sync_id = htod16(random() & 0xffff);
 
 	params_size += OFFSETOF(wl_escan_params_t, params);
@@ -615,7 +615,7 @@ acs_run_escan(acs_chaninfo_t *c_info, uint8 scan_type)
 	c_info->acs_escan->escan_bss_tail = NULL;
 
 	ACSD_INFO("Escan start \n");
-	while (time(NULL) < escan_timeout && c_info->acs_escan->acs_escan_inprogress) {
+	while (uptime() < escan_timeout && c_info->acs_escan->acs_escan_inprogress) {
 		memcpy(&tv_tmp, &tv, sizeof(tv));
 		acsd_main_loop(&tv_tmp);
 	}
@@ -656,7 +656,7 @@ acs_escan_prep_ci(acs_chaninfo_t *c_info, wl_scan_params_t *params, int *params_
 	params->channel_list[0] = htodchanspec(scan_elemt->chspec);
 
 	acs_ci_scan_update_idx(scan_chspec_q, 1);
-	c_info->timestamp_acs_scan = time(NULL);
+	c_info->timestamp_acs_scan = uptime();
 
 	*params_size = WL_SCAN_PARAMS_FIXED_SIZE + params->channel_num * sizeof(uint16);
 	ACSD_INFO("ci scan on chspec: 0x%4x (%s)\n", scan_elemt->chspec, wf_chspec_ntoa(scan_elemt->chspec, chanspecbuf));
@@ -800,7 +800,7 @@ acs_update_escanresult_queue(acs_chaninfo_t *c_info)
 		new_entry->binfo_local.SSID_len = bi->SSID_len;
 		memcpy(new_entry->binfo_local.SSID, bi->SSID, bi->SSID_len);
 		memcpy(&new_entry->binfo_local.BSSID, &bi->BSSID, sizeof(struct ether_addr));
-		new_entry->timestamp = time(NULL);
+		new_entry->timestamp = uptime();
 		acs_parse_chanspec(cur_chspec, &chan);
 		ACSD_INFO("Scan: chanspec 0x%4x (%s), control %x SSID %s\n", cur_chspec, wf_chspec_ntoa(cur_chspec, chanspecbuf),
 			chan.control, new_entry->binfo_local.SSID);
@@ -838,7 +838,7 @@ acs_update_scanresult_queue(acs_chaninfo_t *c_info)
 		new_entry->binfo_local.SSID_len = bi->SSID_len;
 		memcpy(new_entry->binfo_local.SSID, bi->SSID, bi->SSID_len);
 		memcpy(&new_entry->binfo_local.BSSID, &bi->BSSID, sizeof(struct ether_addr));
-		new_entry->timestamp = time(NULL);
+		new_entry->timestamp = uptime();
 		acs_parse_chanspec(cur_chspec, &chan);
 		ACSD_INFO("Scan: chanspec 0x%4x (%s), control %x SSID %s\n", cur_chspec, wf_chspec_ntoa(cur_chspec, chanspecbuf),
 			chan.control, new_entry->binfo_local.SSID);
@@ -1058,7 +1058,7 @@ acs_scan_timer_or_dfsr_check(acs_chaninfo_t * c_info)
 
 			ACSD_DEBUG(" timer: %d\n", cs_scan_timer);
 
-			passed = time(NULL) - start_record->timestamp;
+			passed = uptime() - start_record->timestamp;
 
 			if (acs_tx_idle_check(c_info) ||
 				((passed > cs_scan_timer) && (!acs_check_assoc_scb(c_info)))) {
@@ -1117,7 +1117,7 @@ acs_scan_timer_or_dfsr_check(acs_chaninfo_t * c_info)
 			}
 		}
 		else {
-		    start_record->timestamp = time(NULL);
+		    start_record->timestamp = uptime();
 		}
 		break;
 

@@ -86,6 +86,7 @@ wlc_airiq_phy_chan2fc(uint channel)
 		return -1;
 	}
 }
+
 #ifdef __AIRIQ_FFTCAPTURE
 void
 wlc_airiq_fftcapture(airiq_info_t *airiqh, uint8 *fftdata, int32 len)
@@ -230,8 +231,9 @@ void wlc_airiq_vasipfftcapture(airiq_info_t *airiqh)
 
 	// Read the FFT Header and extract BW
 	/*
-	wlc_svmp_mem_read64(airiqh->wlc->hw, (uint64*)airiqh->fft_buffer,
-		SVMP_HEADER_ADDR, VASIP_FFT_HEADER_SIZE / 8); */
+	* wlc_svmp_mem_read64(airiqh->wlc->hw, (uint64*)airiqh->fft_buffer,
+	*	SVMP_HEADER_ADDR, VASIP_FFT_HEADER_SIZE / 8);
+	*/
 
 	wlc_svmp_mem_read_axi(airiqh->wlc->hw, (uint16*)airiqh->fft_buffer,
 		airiqh->svmp_header_addr, VASIP_FFT_HEADER_SIZE / 2);
@@ -276,12 +278,13 @@ void wlc_airiq_vasipfftcapture(airiq_info_t *airiqh)
 	words2read = ((datalen - sizeof(airiq_fftdata_header_t)) >> 3) + 1;
 
 	/* Read the FFT data */
-	/*wlc_svmp_mem_read64(airiqh->wlc->hw,
-	    (uint64*)(buffer + sizeof(airiq_fftdata_header_t)),
-	    SVMP_FFT_DATA_ADDR, words2read); */
-	    wlc_svmp_mem_read_axi(airiqh->wlc->hw,
-			(uint16*)(buffer + sizeof(airiq_fftdata_header_t)),
-			airiqh->svmp_fft_data_addr, 4*words2read);
+	/* wlc_svmp_mem_read64(airiqh->wlc->hw,
+	*    (uint64*)(buffer + sizeof(airiq_fftdata_header_t)),
+	*    SVMP_FFT_DATA_ADDR, words2read);
+	*/
+	wlc_svmp_mem_read_axi(airiqh->wlc->hw,
+		(uint16*)(buffer + sizeof(airiq_fftdata_header_t)),
+		airiqh->svmp_fft_data_addr, 4*words2read);
 
 	/* Setup the data hdr */
 	hdr->timestamp = timestamp;

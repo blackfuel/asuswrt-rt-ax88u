@@ -193,7 +193,7 @@ acsd_proc_cmd(acsd_wksp_t* d_info, char* buf, uint rcount, uint* r_size)
 		       "fixchspec"};
 		d_info->stats.valid_cmds++;
 
-		time(&ltime);
+		ltime = uptime();
 		*r_size = sprintf(buf, "time: %s \n", ctime(&ltime));
 		*r_size += sprintf(buf+ *r_size, "acsd version: %d\n", d_info->version);
 		*r_size += sprintf(buf+ *r_size, "acsd ticks: %d\n", d_info->ticks);

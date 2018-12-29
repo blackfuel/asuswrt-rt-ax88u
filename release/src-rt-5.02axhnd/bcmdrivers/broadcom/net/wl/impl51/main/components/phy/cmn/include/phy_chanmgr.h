@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_chanmgr.h 667962 2016-10-31 23:34:04Z $
+ * $Id: phy_chanmgr.h 767248 2018-08-31 20:55:03Z $
  */
 
 #ifndef _phy_chanmgr_h_
@@ -80,4 +80,6 @@ void phy_sr_vsdb_reset(wlc_phy_t *pi);
 void phy_reset_srvsdb_engine(wlc_phy_t *pi);
 
 uint16 phy_chanmgr_get_home_chanspec(phy_chanmgr_info_t *chanmgri);
+
+void phy_chanmgr_dccal_force(phy_info_t *pi);
 #endif /* _phy_chanmgr_h_ */

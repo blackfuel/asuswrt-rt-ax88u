@@ -50,7 +50,7 @@
  *
  *  $ txgaintables_tcl2c.py 47xxtcl wlc_phytbl_ac_gains.h wlc_phytbl_ac_gains.c
  *
- * $Id: wlc_phytbl_ac_gains.h 752608 2018-03-16 19:02:24Z $
+ * $Id: wlc_phytbl_ac_gains.h 767381 2018-09-07 23:44:46Z $
  */
 /* FILE-CSTYLED */
 
@@ -95,6 +95,7 @@ extern const uint16 acphy28nm_txgain_epa_2g_p5_20694a0_rev5[TXGAIN_TABLES_LEN];
 extern const uint16 acphy28nm_txgain_epa_2g_p5_20696a0_rev0[TXGAIN_TABLES_LEN];
 extern const uint16 acphy28nm_txgain_epa_5g_p5_20696a0_rev0[TXGAIN_TABLES_LEN];
 extern const uint16 acphy28nm_txgain_epa_2g_p5_20698a0_rev0[TXGAIN_TABLES_LEN];
+extern const uint16 acphy28nm_txgain_epa_2g_p5_20698b0_rev2[TXGAIN_TABLES_LEN];
 extern const uint16 acphy28nm_txgain_epa_5g_p5_20698a0_rev0[TXGAIN_TABLES_LEN];
 extern const uint16 acphy28nm_txgain_epa_5g_p5_20698b0_rev2[TXGAIN_TABLES_LEN];
 extern const uint16 acphy28nm_txgain_epa_2g_p5_20704a0_rev0[TXGAIN_TABLES_LEN];

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_tbl.c 752608 2018-03-16 19:02:24Z $
+ * $Id: phy_ac_tbl.c 767381 2018-09-07 23:44:46Z $
  */
 
 #include <phy_cfg.h>
@@ -2823,7 +2823,7 @@ wlc_phy_get_txgain_tbl_20698(phy_info_t *pi)
 		break;
 	case 2:
 		tx_pwrctrl_tbl = CHSPEC_IS2G(pi->radio_chanspec) ?
-			acphy28nm_txgain_epa_2g_p5_20698a0_rev0:
+			acphy28nm_txgain_epa_2g_p5_20698b0_rev2:
 			acphy28nm_txgain_epa_5g_p5_20698b0_rev2;
 		break;
 	default:

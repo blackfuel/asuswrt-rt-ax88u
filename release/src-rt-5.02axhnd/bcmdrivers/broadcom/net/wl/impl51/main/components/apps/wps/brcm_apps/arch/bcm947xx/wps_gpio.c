@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: wps_gpio.c 754816 2018-03-29 07:07:35Z $
+ * $Id: wps_gpio.c 766036 2018-07-23 22:20:10Z $
  */
 
 #include <typedefs.h>
@@ -86,6 +86,14 @@
 #include <sys/poll.h>
 #include <sys/ioctl.h>
 #include <board.h>
+
+#ifdef BCA_CPEROUTER
+#include <wlcsm_lib_api.h>
+void cperouter_restart_wlan(void)
+{
+	wlcsm_mngr_restart(0, WLCSM_MNGR_RESTART_NVRAM, WLCSM_MNGR_RESTART_SAVEDM, 0);
+}
+#endif /* BCA_CPEROUTER */
 
 static wps_blinktype_t current_blinktype = WPS_BLINKTYPE_STOP;
 static struct timespec led_change_time;
@@ -154,8 +162,17 @@ wps_gpio_btn_pressed()
 		/* Read board driver (SES_EVENT). Type of button press
 		 * [SHORT/LONG] is encoded in val
 		 */
-		if ((len = read(board_fp, (char*)&val, sizeof(val))) > 0) {
-			if (val & trigger) {
+		if ((len = read(board_fp, (char*)&val, sizeof(val))) > 0 && (val & trigger)) {
+#ifdef BCA_CPEROUTER
+			/* with new button implementation, press type is in
+			 * return value, no loop poll needed
+			 */
+			if (val & SES_EVENT_BTN_LONG) {
+			    btn_event = WPS_LONG_BTNPRESS;
+			}  else if (val & SES_EVENT_BTN_SHORT) {
+			    btn_event = WPS_SHORT_BTNPRESS;
+			} else {
+#endif // endif
 				/* Button management interface: Keep reading
 				 * from the board driver until button is released
 				 * and count the press time here
@@ -174,8 +191,18 @@ wps_gpio_btn_pressed()
 					if (val & trigger)
 						count++;
 
+#ifndef BCA_CPEROUTER
+					/* With legacy way to poll button, if quit over lbpcount,
+					 * will lead to wrong button press type returned, always
+					 * fire one LONG_BTNPRESS following with another
+					 * SHORT_BTNPRESS,for continuous push button,should keep
+					 * polling,thus for CPEROUTER, do not break from here as
+					 * there are some CPEROTURE platforms(such as 63138) are
+					 * still using legacy pushbutton implementation.
+					*/
 					if (count >= lbpcount)
 						break;
+#endif // endif
 				}
 
 				if (count < lbpcount) {
@@ -186,7 +213,9 @@ wps_gpio_btn_pressed()
 					WPS_GPIO("WPS long button press (legacy)\n");
 					btn_event = WPS_LONG_BTNPRESS;
 				}
+#ifdef BCA_CPEROUTER
 			}
+#endif // endif
 		}
 	}
 

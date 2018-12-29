@@ -19,14 +19,10 @@ body, .p1, .form-input{
 }
 body{
 	font-family: Roboto, Arial, STHeiti, Microsoft JhengHei, sans-serif;
+	background-color: rgb(31, 31, 31) !important;
 }
 .bg{
 	background: url(/images/New_ui/login_bg.png) no-repeat center center fixed;
-}
-.bg-odm{
-	background: url(/images/New_ui/login_bg_COD.png) no-repeat center center fixed;
-}
-.bg, .bg-odm{
 	-webkit-background-size: cover;
 	-moz-background-size: cover;
 	-o-background-size: cover;
@@ -81,7 +77,10 @@ body{
 .login-bg-odm{
 	background: url('./images/New_ui/ROG-Sec_login.png') no-repeat;
 }
-.login-field-padding{
+..login-field-padding{
+	padding-top: 0;
+}
+.login-field-padding-odm{
 	padding-top: 60px;
 }
 .login-title{
@@ -206,6 +205,9 @@ body{
 	display: none;
 }
 .login-field-padding{
+	padding: 0;
+}
+.login-field-padding-odm{
 	padding: 10px 0 0 0; 
 }
 .login-btn-bg, .login-btn-bg-odm{
@@ -248,6 +250,7 @@ body{
 </style>
 <script>
 var odm_support = ('<% nvram_get("rc_support"); %>'.indexOf('odm') != -1) ? true : false;
+
 /* add Array.prototype.forEach() in IE8 */
 if(typeof Array.prototype.forEach != 'function'){
 	Array.prototype.forEach = function(callback){
@@ -281,12 +284,12 @@ var isRouterMode = ('<% nvram_get("sw_mode"); %>' == '1') ? true : false;
 
 var header_info = [<% get_header_info(); %>][0];
 var ROUTERHOSTNAME = '<% nvram_get("local_domain"); %>';
-var domainNameUrl = ((header_info.host.split(":").length==2)?"https":"http")+"://"+header_info.host.replace(header_info.host.split(":")[0], ROUTERHOSTNAME);
+var domainNameUrl = header_info.protocol+"://"+ROUTERHOSTNAME+":"+header_info.port;
 var chdom = function(){window.location.href=domainNameUrl};
 (function(){
 	if(ROUTERHOSTNAME !== header_info.host && ROUTERHOSTNAME != "" && isRouterMode){
 		setTimeout(function(){
-			var s=document.createElement("script");s.type="text/javascript";s.src=domainNameUrl+"/chdom.json?hostname="+header_info.host.split(":")[0];var h=document.getElementsByTagName("script")[0];h.parentNode.insertBefore(s,h);
+			var s=document.createElement("script");s.type="text/javascript";s.src=domainNameUrl+"/chdom.json?hostname="+header_info.host;var h=document.getElementsByTagName("script")[0];h.parentNode.insertBefore(s,h);
 		}, 1);
 	}
 })();
@@ -296,13 +299,13 @@ var chdom = function(){window.location.href=domainNameUrl};
 function initial(){
 	/*handle sysdep for ROG or ODM product*/
 	if(odm_support){
-		document.getElementsByClassName("bg")[0].className = "bg-odm";
 		document.getElementsByClassName("main-field-bg")[0].className = "main-field-bg-odm";
 		document.getElementsByClassName("logo-container")[0].className = "logo-container-odm";
 		document.getElementsByClassName("model-name")[0].className = "logo-odm";
 		document.getElementsByClassName("login-bg")[0].className = "login-bg-odm";
 		document.getElementsByClassName("login-btn-bg")[0].className = "login-btn-bg-odm";
 		document.getElementsByClassName("login-title")[0].style.display = "block";
+		document.getElementsByClassName("login-field-padding")[0].className = "login-field-padding-odm";
 	}
 	else{
 		document.getElementsByClassName("model-name")[0].innerHTML = "<#Web_Title2#>"

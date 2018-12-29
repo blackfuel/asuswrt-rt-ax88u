@@ -423,16 +423,24 @@ int _cpu_eval(int *ppid, char *cmds[])
 #if defined (SMP) || defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
         cpucmd[ncmds++]="taskset";
         cpucmd[ncmds++]="-c";
-        if(!strcmp(cmds[n], CPU0) || !strcmp(cmds[n], CPU1)) {
+	if(!strcmp(cmds[n], CPU0) || !strcmp(cmds[n], CPU1)
+#if defined(GTAC5300) || defined(GTAX11000) || defined(RTAX88U)
+			|| !strcmp(cmds[n], CPU2) || !strcmp(cmds[n], CPU3)
+#endif
+			)
                 cpucmd[ncmds++]=cmds[n++];
-        } else
+        else
 #if defined(RTCONFIG_ALPINE) || defined(RTCONFIG_LANTIQ)
                 cpucmd[ncmds++]=cmds[n++];;
 #else
                 cpucmd[ncmds++]=CPU0;
 #endif
 #else
-        if(strcmp(cmds[n], CPU0) && strcmp(cmds[n], CPU1))
+	if(strcmp(cmds[n], CPU0) && strcmp(cmds[n], CPU1)
+#if defined(GTAC5300) || defined(GTAX11000) || defined(RTAX88U)
+			&& strcmp(cmds[n], CPU2) && strcmp(cmds[n], CPU3)
+#endif
+			)
                 cpucmd[ncmds++]=cmds[n++];
         else
                 n++;

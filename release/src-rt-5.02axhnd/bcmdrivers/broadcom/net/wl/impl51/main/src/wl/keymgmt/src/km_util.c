@@ -43,7 +43,7 @@
  *
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
- * $Id: km_util.c 761291 2018-05-07 14:08:10Z $
+ * $Id: km_util.c 767108 2018-08-28 12:23:52Z $
  */
 
 #include "km_pvt.h"
@@ -412,6 +412,7 @@ void km_null_key_deauth(keymgmt_t *km, scb_t *scb, void *pkt)
 				&bsscfg->cur_etheraddr, &bsscfg->cur_etheraddr,
 				DOT11_RC_AUTH_INVAL);
 			wlc_scb_clearstatebit(wlc, scb, AUTHORIZED);
+			wlc_scb_disassoc_cleanup(wlc, scb);
 			wlc_deauth_complete(wlc, bsscfg, WLC_E_STATUS_SUCCESS, &scb->ea,
 				DOT11_RC_AUTH_INVAL, 0);
 			scb->flags |= SCB_DEAUTH;

@@ -1175,7 +1175,7 @@ void start_usblpsrv(void)
 int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 {
 	struct mntent *mnt;
-	int ret;
+	int ret = -1;
 	char options[140];
 	char flagfn[128];
 	int dir_made;
@@ -1337,53 +1337,48 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 				f_write(flagfn, NULL, 0, 0, 0);
 			}
 
-			if(!strncmp(type, "vfat", 4)){
-#ifdef RTCONFIG_OPENPLUS_TFAT
-				if(nvram_match("usb_fatfs_mod", "tuxera"))
-					ret = eval("mount", "-t", "tfat", "-o", options, mnt_dev, mnt_dir);
-				else
-					ret = eval("mount", "-t", "vfat", "-o", options, mnt_dev, mnt_dir);
-#elif defined(RTCONFIG_TFAT)
-				ret = eval("mount", "-t", "tfat", "-o", options, mnt_dev, mnt_dir);
-#else
-				ret = eval("mount", "-t", "vfat", "-o", options, mnt_dev, mnt_dir);
-#endif
-				if(ret != 0){
-					syslog(LOG_INFO, "USB %s(%s) failed to mount at the first try!" , mnt_dev, type);
-					TRACE_PT("USB %s(%s) failed to mount at the first try!\n", mnt_dev, type);
-				}
-			}
-			else
-			{
+			if(!strncmp(type, "ext", 3)){
 				ret = mount(mnt_dev, mnt_dir, type, flags, options[0] ? options : "");
 				if(ret != 0){
-					if(strncmp(type, "ext", 3)){
-						syslog(LOG_INFO, "USB %s(%s) failed to mount at the first try!", mnt_dev, type);
-						TRACE_PT("USB %s(%s) failed to mount At the first try!\n", mnt_dev, type);
-						logmessage("usb", "USB %s(%s) failed to mount At the first try!\n", mnt_dev, type);
+					if(!strcmp(type, "ext4")){
+						snprintf(type, 16, "ext3");
+						ret = mount(mnt_dev, mnt_dir, type, flags, options[0] ? options : "");
 					}
-					else{
-						if(!strcmp(type, "ext4")){
-							snprintf(type, 16, "ext3");
-							ret = mount(mnt_dev, mnt_dir, type, flags, options[0] ? options : "");
-						}
 
-						if(ret != 0 && !strcmp(type, "ext3")){
-							snprintf(type, sizeof(type), "ext2");
-							ret = mount(mnt_dev, mnt_dir, type, flags, options[0] ? options : "");
-						}
-
-						if(ret != 0 && !strcmp(type, "ext2")){
-							snprintf(type, sizeof(type), "ext");
-							ret = mount(mnt_dev, mnt_dir, type, flags, options[0] ? options : "");
-						}
-
-						if(ret != 0){
-							syslog(LOG_INFO, "USB %s(ext) failed to mount at the first try!", mnt_dev);
-							TRACE_PT("USB %s(ext) failed to mount at the first try!\n", mnt_dev);
-							logmessage("usb", "USB %s(ext) failed to mount at the first try!\n", mnt_dev);
-						}
+					if(ret != 0 && !strcmp(type, "ext3")){
+						snprintf(type, sizeof(type), "ext2");
+						ret = mount(mnt_dev, mnt_dir, type, flags, options[0] ? options : "");
 					}
+
+					if(ret != 0 && !strcmp(type, "ext2")){
+						snprintf(type, sizeof(type), "ext");
+						ret = mount(mnt_dev, mnt_dir, type, flags, options[0] ? options : "");
+					}
+
+					if(ret != 0){
+						syslog(LOG_INFO, "USB %s(ext) failed to mount!", mnt_dev);
+						TRACE_PT("USB %s(ext) failed to mount!\n", mnt_dev);
+					}
+				}
+			}
+
+			if (ret != 0 && !strncmp(type, "vfat", 4)) {
+#if !defined(RTCONFIG_TFAT) || defined(RTCONFIG_OPENPLUS_TFAT)
+#if defined(RTCONFIG_OPENPLUS_TFAT)
+				if(nvram_match("usb_fatfs_mod", "open"))
+#endif
+					ret = eval("mount", "-t", "vfat", "-o", options, mnt_dev, mnt_dir);
+#endif
+#ifdef RTCONFIG_TFAT
+#ifdef RTCONFIG_OPENPLUS_TFAT
+				else
+#endif
+					ret = eval("mount", "-t", "tfat", "-o", options, mnt_dev, mnt_dir);
+#endif
+
+				if(ret != 0){
+					syslog(LOG_INFO, "USB %s(%s) failed to mount!" , mnt_dev, type);
+					TRACE_PT("USB %s(%s) failed to mount!\n", mnt_dev, type);
 				}
 			}
 
@@ -1395,25 +1390,30 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 #if defined(RTCONFIG_OPENPLUSPARAGON_NTFS) || defined(RTCONFIG_OPENPLUSTUXERA_NTFS)
 					if(nvram_match("usb_ntfs_mod", "open"))
 #endif
-					ret = eval("ntfs-3g", "-o", options, mnt_dev, mnt_dir);
+						ret = eval("ntfs-3g", "-o", options, mnt_dev, mnt_dir);
 #endif
 #if defined(RTCONFIG_TUXERA_NTFS)
 #if defined(RTCONFIG_OPENPLUSTUXERA_NTFS)
 					else
 #endif
-					ret = eval("mount", "-t", "tntfs", "-o", options, mnt_dev, mnt_dir);
+						ret = eval("mount", "-t", "tntfs", "-o", options, mnt_dev, mnt_dir);
 #endif
 #if defined(RTCONFIG_PARAGON_NTFS)
 #if defined(RTCONFIG_OPENPLUSPARAGON_NTFS)
 					else
 #endif
 					{
-					if(nvram_get_int("usb_fs_ntfs_sparse"))
-						ret = eval("mount", "-t", "ufsd", "-o", options, "-o", "force", "-o", "sparse", mnt_dev, mnt_dir);
-					else
-						ret = eval("mount", "-t", "ufsd", "-o", options, "-o", "force", mnt_dev, mnt_dir);
+						if(nvram_get_int("usb_fs_ntfs_sparse"))
+							ret = eval("mount", "-t", "ufsd", "-o", options, "-o", "force", "-o", "sparse", mnt_dev, mnt_dir);
+						else
+							ret = eval("mount", "-t", "ufsd", "-o", options, "-o", "force", mnt_dev, mnt_dir);
 					}
 #endif
+
+					if(ret != 0){
+						syslog(LOG_INFO, "USB %s(%s) failed to mount!" , mnt_dev, type);
+						TRACE_PT("USB %s(%s) failed to mount!\n", mnt_dev, type);
+					}
 				}
 			}
 #endif
@@ -1427,22 +1427,27 @@ int mount_r(char *mnt_dev, char *mnt_dir, char *_type)
 					if(nvram_match("usb_hfs_mod", "open"))
 #endif
 					{
-					eval("fsck.hfsplus", "-f", mnt_dev);//Scan
-					ret = eval("mount", "-t", "hfsplus", "-o", options, mnt_dev, mnt_dir);
+						eval("fsck.hfsplus", "-f", mnt_dev);//Scan
+						ret = eval("mount", "-t", "hfsplus", "-o", options, mnt_dev, mnt_dir);
 					}
 #endif
 #if defined(RTCONFIG_TUXERA_HFS)
 #if defined(RTCONFIG_OPENPLUSTUXERA_HFS)
 					else
 #endif
-					ret = eval("mount", "-t", "thfsplus", "-o", options, mnt_dev, mnt_dir);
+						ret = eval("mount", "-t", "thfsplus", "-o", options, mnt_dev, mnt_dir);
 #endif
 #if defined(RTCONFIG_PARAGON_HFS)
 #if defined(RTCONFIG_OPENPLUSPARAGON_HFS)
 					else
 #endif
-					ret = eval("mount", "-t", "ufsd", "-o", options, mnt_dev, mnt_dir);
+						ret = eval("mount", "-t", "ufsd", "-o", options, mnt_dev, mnt_dir);
 #endif
+
+					if(ret != 0){
+						syslog(LOG_INFO, "USB %s(%s) failed to mount!" , mnt_dev, type);
+						TRACE_PT("USB %s(%s) failed to mount!\n", mnt_dev, type);
+					}
 				}
 			}
 #endif
@@ -3077,7 +3082,11 @@ start_samba(void)
 	system("/sbin/write_smb_conf");
 
 	/* write smbpasswd  */
+#ifdef RTCONFIG_SAMBA36X
+	system("echo -e \"\n\n\" |smbpasswd -s -a nobody");
+#else
 	system("smbpasswd nobody \"\"");
+#endif
 
 #ifdef RTCONFIG_PERMISSION_MANAGEMENT
 	PMS_ACCOUNT_INFO_T *account_list, *follow_account;
@@ -3106,8 +3115,11 @@ start_samba(void)
 		memset(suit_passwd, 0, 64);
 		suit_double_quote(suit_passwd, char_passwd, 64);
 
-		sprintf(cmd, "smbpasswd \"%s\" \"%s\"", suit_user, suit_passwd);
-
+#ifdef RTCONFIG_SAMBA36X
+		snprintf(cmd, sizeof(cmd), "echo -e \"%s\n%s\n\"  |smbpasswd -s -a \"%s\"", suit_passwd, suit_passwd, suit_user);
+#else
+		snprintf(cmd, sizeof(cmd), "smbpasswd \"%s\" \"%s\"", suit_user, suit_passwd);
+#endif
 		system(cmd);
 	}
 
@@ -3144,7 +3156,12 @@ start_samba(void)
 
 			memset(suit_passwd, 0, 64);
 			suit_double_quote(suit_passwd, char_passwd, 64);
-			sprintf(cmd, "smbpasswd \"%s\" \"%s\"", suit_user, suit_passwd);
+
+#ifdef RTCONFIG_SAMBA36X
+			snprintf(cmd, sizeof(cmd), "echo -e \"%s\n%s\n\"  |smbpasswd -s -a \"%s\"", suit_passwd, suit_passwd, suit_user);
+#else
+			snprintf(cmd, sizeof(cmd), "smbpasswd \"%s\" \"%s\"", suit_user, suit_passwd);
+#endif
 			system(cmd);
 
 			if(++i >= acc_num)
@@ -3159,11 +3176,11 @@ start_samba(void)
 
 #if defined(RTCONFIG_TFAT) || defined(RTCONFIG_TUXERA_NTFS) || defined(RTCONFIG_TUXERA_HFS)
 	if(nvram_get_int("enable_samba_tuxera") == 1)
-		snprintf(smbd_cmd, 32, "%s/smbd", "/usr/bin");
+		snprintf(smbd_cmd, sizeof(smbd_cmd), "%s/smbd", "/usr/bin");
 	else
-		snprintf(smbd_cmd, 32, "%s/smbd", "/usr/sbin");
+		snprintf(smbd_cmd, sizeof(smbd_cmd), "%s/smbd", "/usr/sbin");
 #else
-	snprintf(smbd_cmd, 32, "%s/smbd", "/usr/sbin");
+	snprintf(smbd_cmd, sizeof(smbd_cmd), "%s/smbd", "/usr/sbin");
 #endif
 
 #if defined(SMP)

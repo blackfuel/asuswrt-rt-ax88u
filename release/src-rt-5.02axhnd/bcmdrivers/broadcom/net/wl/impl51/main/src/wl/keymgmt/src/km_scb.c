@@ -43,7 +43,7 @@
  *
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
- * $Id: km_scb.c 762461 2018-05-14 11:51:31Z $
+ * $Id: km_scb.c 767601 2018-09-18 14:29:52Z $
  */
 
 #include "km_pvt.h"
@@ -150,14 +150,6 @@ km_scb_init_internal(keymgmt_t *km, scb_t *scb)
 
 	/* ignore internal scb */
 	if (SCB_INTERNAL(scb)) {
-		if (RATELINKMEM_ENAB(KM_PUB(km))) {
-			/* since we are using bcmc scb to create per-bss linkMem entry,
-			 * need to init the amt_idx so that amt indices are generated correctly
-			 * in km_scb_amt_alloc
-			 */
-			scb_km = KM_SCB(km, scb);
-			scb_km->amt_idx = KM_HW_AMT_IDX_INVALID;
-		}
 		goto done;
 	}
 
@@ -636,14 +628,6 @@ km_scb_amt_alloc(keymgmt_t *km, scb_t *scb)
 	KM_DBG_ASSERT(bsscfg != NULL);
 
 	ea = &scb->ea;
-	if (RATELINKMEM_ENAB(KM_PUB(km)) && KM_IGNORED_SCB(scb)) {
-		if (scb == WLC_RLM_SPECIAL_LINK_SCB(km->wlc)) {
-			amt_idx = WLC_RLM_SPECIAL_LINK_IDX;
-			goto done;
-		}
-		/* reserve AMT per BSS otherwise, use BSS MAC */
-		ea = &bsscfg->cur_etheraddr;
-	}
 #ifdef PSTA
 	if (BSSCFG_STA(bsscfg) && PSTA_ENAB(KM_PUB(km)))
 		ea = &bsscfg->cur_etheraddr; /* PSTA uses A1 match */
@@ -786,7 +770,8 @@ int wlc_keymgmt_get_scb_amt_idx(wlc_keymgmt_t *km, scb_t *scb)
 	KM_ASSERT(KM_VALID(km));
 
 	err = BCME_NOTFOUND;
-	if (!scb || (KM_IGNORED_SCB(scb) && !RATELINKMEM_ENAB(KM_PUB(km))))
+	/* OLPC SCB is not ignored */
+	if (!scb || (KM_IGNORED_SCB(scb) && !SCB_OLPC(scb)))
 		goto done;
 
 	ASSERT((KM_SCB(km, scb)->flags & KM_SCB_FLAG_INIT) != 0);
@@ -814,16 +799,12 @@ void wlc_keymgmt_restore_scb_amt_entry(wlc_keymgmt_t *km, scb_t *scb)
 	KM_DBG_ASSERT(RATELINKMEM_ENAB(KM_PUB(km)));
 
 	ea = &scb->ea;
+	if (KM_IGNORED_SCB(scb)) {
+		return;
+	}
+
 	scb_km = KM_SCB(km, scb);
 	amt_idx = scb_km->amt_idx;
-
-	if (RATELINKMEM_ENAB(KM_PUB(km)) && KM_IGNORED_SCB(scb)) {
-		if (scb == WLC_RLM_SPECIAL_LINK_SCB(km->wlc)) {
-			amt_idx = WLC_RLM_SPECIAL_LINK_IDX;
-		}
-		/* reserve AMT per BSS otherwise, use BSS MAC */
-		ea = &SCB_BSSCFG(scb)->cur_etheraddr;
-	}
 
 	if (amt_idx == KM_HW_AMT_IDX_INVALID) {
 		return;
@@ -834,10 +815,6 @@ void wlc_keymgmt_restore_scb_amt_entry(wlc_keymgmt_t *km, scb_t *scb)
 	 */
 	km_hw_amt_reserve(km->hw, amt_idx, 1, TRUE);
 
-	if (amt_idx == WLC_RLM_SPECIAL_LINK_IDX) {
-		goto done;
-	}
-
 	/* preserve any valid amt attributes */
 	amt_attr = wlc_clear_addrmatch(km->wlc, amt_idx);
 	if (!(amt_attr & AMT_ATTR_VALID)) {
@@ -846,7 +823,6 @@ void wlc_keymgmt_restore_scb_amt_entry(wlc_keymgmt_t *km, scb_t *scb)
 	amt_attr |= (AMT_ATTR_VALID | AMT_ATTR_A2);
 	wlc_set_addrmatch(km->wlc, amt_idx, ea, amt_attr);
 
-done:
 	KM_LOG(("wl%d.%d: %s: reserved amt index %d for addr %s flags 0x%04x\n",
 		KM_UNIT(km), WLC_BSSCFG_IDX(SCB_BSSCFG(scb)), __FUNCTION__,
 		amt_idx,  bcm_ether_ntoa(ea, eabuf), scb_km->flags));

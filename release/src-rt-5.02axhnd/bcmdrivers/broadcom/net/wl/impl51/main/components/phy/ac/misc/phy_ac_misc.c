@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_misc.c 765867 2018-07-18 18:48:56Z $
+ * $Id: phy_ac_misc.c 766801 2018-08-14 18:08:26Z $
  */
 
 #include <phy_cfg.h>
@@ -1617,8 +1617,8 @@ wlc_phy_force_rfseq_acphy(phy_info_t *pi, uint8 cmd)
 	stall_val = READ_PHYREGFLD(pi, RxFeCtrl1, disable_stalls);
 	fifo_rst_val = READ_PHYREGFLD(pi, RxFeCtrl1, soft_sdfeFifoReset);
 
-	/* Force gated clocks on. For 43684 using this code causes hang */
-	if ((pi->pubpi->phy_rev >= 32) && (!ACMAJORREV_47_51(pi->pubpi->phy_rev))) {
+	/* Force gated clocks on */
+	if ((pi->pubpi->phy_rev >= 32)) {
 		wlapi_bmac_phyclk_fgc(pi->sh->physhim, ON);
 		W_REG(pi->sh->osh, D11_PSM_PHY_CTL(pi), 0x6); /* set reg(PHY_CTL) 0x6 */
 
@@ -1658,7 +1658,7 @@ wlc_phy_force_rfseq_acphy(phy_info_t *pi, uint8 cmd)
 
 	/* Restore */
 	MOD_PHYREG(pi, RxFeCtrl1, soft_sdfeFifoReset, fifo_rst_val);
-	if ((pi->pubpi->phy_rev >= 32) && (!ACMAJORREV_47_51(pi->pubpi->phy_rev))) {
+	if ((pi->pubpi->phy_rev >= 32)) {
 		/* Undo Stalls */
 		ACPHY_ENABLE_STALL(pi, stall_val);
 		OSL_DELAY(1);

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_radar_shared.c 765796 2018-07-17 09:11:26Z $
+ * $Id: phy_radar_shared.c 767730 2018-09-25 03:30:30Z $
  */
 
 #include <phy_cfg.h>
@@ -183,6 +183,17 @@ typedef struct {
 	pulse_data_t pulses[RDR_LIST_SIZE];
 } radar_work_t;
 
+/* Field Description: fm_chk_pw_thrs1, fm_chk_pw_thrs2 */
+static const uint16 fm_chk_pw[] = {25, 65};
+/* Set individual fm threshold in below three pw regions:
+ * Region 1: pw < fm_chk_pw_thrs1; Region 2: fm_chk_pw_thrs1 < pw < fm_chk_pw_thrs2;
+ * Region 3: fm_chk_pw_thrs2 < pw; Field Description: fmthrs_20_rgn1, fmthrs_20_rgn2,
+ * fmthrs_20_rgn3, fmthrs_40_rgn1, fmthrs_40_rgn2, fmthrs_40_rgn3, fmthrs_80_rgn1,
+ * fmthrs_80_rgn2, fmthrs_80_rgn3, fmthrs_160_rgn1, fmthrs_160_rgn2, fmthrs_160_rgn3
+ */
+static const uint16 fm_thrs_sp[] = {0, 15, 60, 0, 170, 255, 30, 250, 255, 10, 250, 255};
+static const uint16 fm_thrs_sp_lesi[] = {0, 15, 60, 0, 0, 200, 0, 0, 100, 0, 20, 200};
+
 #define SUBBAND_NUM_BW40	2
 #define SUBBAND_NUM_BW80	4
 #define SUBBAND_NUM_BW160	8
@@ -225,6 +236,8 @@ bool bw80_80_mode)
 	uint16 RadarFifoCtrlReg[2];
 	uint16 RadarFifoDataReg[2];
 	radar_lp_info_t *rlpt = (sec_pll) ? st->radar_work_lp_sc : &st->radar_lp_info;
+	uint8 rdr_core_mask = READ_PHYREGFLD(pi, CoreConfig, CoreMask) & READ_PHYREGFLD(pi,
+		RadarDetectConfig1, core_select_overwrite);
 
 	bzero(rt->pulses_input, sizeof(rt->pulses_input));
 
@@ -253,6 +266,15 @@ bool bw80_80_mode)
 						ACPHY_Antenna0_radarFifoData_SC(pi->pubpi->phy_rev);
 					RadarFifoDataReg[1] = 0;
 				}
+				ANT_num = 1;
+			} else if (ACMAJORREV_47(pi->pubpi->phy_rev) && ((rdr_core_mask  == 0x8) ||
+				(rdr_core_mask == 0x4) || (rdr_core_mask == 0x2))) {
+				RadarFifoCtrlReg[0] =
+					ACPHY_Antenna1_radarFifoCtrl(pi->pubpi->phy_rev);
+				RadarFifoCtrlReg[1] = 0;
+				RadarFifoDataReg[0] =
+					ACPHY_Antenna1_radarFifoData(pi->pubpi->phy_rev);
+				RadarFifoDataReg[1] = 0;
 				ANT_num = 1;
 			} else {
 				ANT_num = GET_RDR_NANTENNAS(pi);
@@ -632,13 +654,11 @@ static bool phy_radar_ext_fm_check(phy_info_t *pi, radar_params_t *rparams, puls
 	int fm_min = 1030;
 	int fm_max = 0;
 	bool fm_chk = TRUE;
+	phy_radar_info_t *ri = pi->radari;
+	phy_radar_st_t *st = phy_radar_get_st(ri);
 	wl_radar_args_t *radar_args = &rparams->radar_args;
 	wl_radar_thr2_t *radar_thrs2 = &rparams->radar_thrs2;
-	int etsi4_fm_thresh = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG) ?
-		radar_thrs2->fm_thresh_etsi4 : (ACMAJORREV_47(pi->pubpi->phy_rev) &&
-		radar_args->max_deltat == 1) ? (((radar_args->fra_pulse_err >> 8) &
-		0xff) - ((radar_args->ncontig >> 6) & 0xf)) : (sec_pll == TRUE) ? 50 :
-		MIN_FM_THRESH_ETSI4;
+	int etsi4_fm_thresh = MIN_FM_THRESH_ETSI4;
 	int pw_thrs_fm_var_chk = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG) ?
 		radar_thrs2->fm_var_chk_pw : 25;
 	int div_fm_tol = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG) ?
@@ -646,6 +666,15 @@ static bool phy_radar_ext_fm_check(phy_info_t *pi, radar_params_t *rparams, puls
 
 	/* special case for ETSI 4, as it has a chirp of +/-2.5MHz */
 	if (det_type == RADAR_TYPE_ETSI_4) {
+		if (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG) {
+			etsi4_fm_thresh = radar_thrs2->fm_thresh_etsi4;
+		} else if (ACMAJORREV_47(pi->pubpi->phy_rev) && radar_args->max_deltat == 1) {
+			etsi4_fm_thresh = ((radar_args->fra_pulse_err >> 8) & 0xff) -
+				((radar_args->ncontig >> 6) & 0xf);
+		} else if (sec_pll == TRUE) {
+			etsi4_fm_thresh = (st->chanset_elna_chk == (NC_CHAN_2GBW20 |
+				NC_CHAN_2GBW40 | SC_CHAN_5GBW20 | EXT_LNA_5G_OFF)) ? 0 : 50;
+		}
 		/* not a valid ETSI 4 if fm doesn't vary */
 		for (k = 0; k < nconsecq_pulses; k++) {
 			if (ISACPHY(pi) && TONEDETECTION) {
@@ -661,6 +690,8 @@ static bool phy_radar_ext_fm_check(phy_info_t *pi, radar_params_t *rparams, puls
 #endif /* BCMDBG */
 						break;
 					}
+				} else {
+					break;
 				}
 			} else {
 				if (pulses[j - k].fm < fm_min) {
@@ -677,29 +708,27 @@ static bool phy_radar_ext_fm_check(phy_info_t *pi, radar_params_t *rparams, puls
 				}
 			}
 		}
-	} else if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
+	} else if ((radar_thrs2->fm_chk_opt & EXT_FM_VAR_CHK_SP) &&
+		(min_det_pw >= pw_thrs_fm_var_chk) && (sec_pll == FALSE)) {
 		for (k = 0; k < nconsecq_pulses; k++) {
-			if ((radar_thrs2->fm_chk_opt & EXT_FM_VAR_CHK_SP) &&
-				(min_det_pw >= pw_thrs_fm_var_chk) && (sec_pll == FALSE)) {
-				if (pulses[j - k].fm < fm_min) {
-					fm_min = pulses[j - k].fm;
-				}
-				if (pulses[j - k].fm > fm_max) {
-					fm_max = pulses[j - k].fm;
-				}
-				fm_dif = ABS(fm_max - fm_min);
-				fm_tol = (fm_min + fm_max) / div_fm_tol;
-				if (fm_dif > fm_tol) {
-					fm_chk = FALSE;
+			if (pulses[j - k].fm < fm_min) {
+				fm_min = pulses[j - k].fm;
+			}
+			if (pulses[j - k].fm > fm_max) {
+				fm_max = pulses[j - k].fm;
+			}
+			fm_dif = ABS(fm_max - fm_min);
+			fm_tol = (fm_min + fm_max) / div_fm_tol;
+			if (fm_dif > fm_tol) {
+				fm_chk = FALSE;
 #ifdef BCMDBG
-					if ((radar_args->feature_mask &
-						RADAR_FEATURE_DEBUG_SHORT_PULSE) != 0) {
-						PHY_RADAR(("\nShort pulses fail fm"
-						" variation check"));
-					}
-#endif /* BCMDBG */
-					break;
+				if ((radar_args->feature_mask &
+					RADAR_FEATURE_DEBUG_SHORT_PULSE) != 0) {
+					PHY_RADAR(("\nShort pulses fail fm"
+					" variation check"));
 				}
+#endif /* BCMDBG */
+				break;
 			}
 		}
 	}
@@ -1807,8 +1836,8 @@ bool bw80_80_mode)
 	uint16 blank_time = 0;
 	int max_detected_chirp = 0;
 	int fm_thrs = -50;
-	int fm_chk_pw_thrs1 = 25;
-	int fm_chk_pw_thrs2 = 65;
+	int fm_chk_pw_thrs1 = fm_chk_pw[0];
+	int fm_chk_pw_thrs2 = fm_chk_pw[1];
 
 	/* 4366 enlarge ofdm_nominal_clip_th when in DFS band to avoid radar triggers preemption */
 	if (ACMAJORREV_32(pi->pubpi->phy_rev) || ACMAJORREV_33(pi->pubpi->phy_rev)) {
@@ -2174,61 +2203,63 @@ bool bw80_80_mode)
 			fm_thrs = -50;
 		}
 		for (i = 0; i < rt->length; i++) {
-			if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
-				if (radar_thrs2->fm_chk_opt & EXT_FM_ABS_CHK_SP) {
-					if (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG) {
-						fm_chk_pw_thrs1 = (radar_thrs2->fm_chk_pw >> 8)
-							& 0xff;
-						fm_chk_pw_thrs2 = radar_thrs2->fm_chk_pw & 0xff;
-					}
-					if (sec_pll == TRUE) {
-						/* set fm_thrs = -5 for A1 to pass p1c absolute
-						 * fm check
-						 */
-						fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
-							? (int16)radar_thrs2->fm_thresh_p1c : -5;
-					} else if (rt->pulses[i].pw < fm_chk_pw_thrs1) {
-						fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
-							? radar_thrs2->fm_thresh_sp1 :
-							(CHSPEC_IS20(pi->radio_chanspec) ||
-							CHSPEC_IS40(pi->radio_chanspec)) ? 0 :
-							CHSPEC_IS80(pi->radio_chanspec) ?
-							(PHY_LESI_ON(pi) ? 0 : 30) :
-							(PHY_LESI_ON(pi) ? 0 : 10);
-					} else if (rt->pulses[i].pw >= fm_chk_pw_thrs1 &&
-						rt->pulses[i].pw < fm_chk_pw_thrs2) {
-						fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
-							? radar_thrs2->fm_thresh_sp2 :
-							CHSPEC_IS20(pi->radio_chanspec) ? 15:
-							CHSPEC_IS40(pi->radio_chanspec) ?
-							(PHY_LESI_ON(pi) ? 0 : 170) :
-							CHSPEC_IS80(pi->radio_chanspec) ?
-							(PHY_LESI_ON(pi) ? 0 : 250) :
-							(PHY_LESI_ON(pi) ? 20 : 250);
-					} else if (rt->pulses[i].pw >= fm_chk_pw_thrs2) {
-						fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
-							? radar_thrs2->fm_thresh_sp3 :
-							CHSPEC_IS20(pi->radio_chanspec) ? 60 :
-							CHSPEC_IS40(pi->radio_chanspec) ?
-							(PHY_LESI_ON(pi) ? 200 : 255) :
-							CHSPEC_IS80(pi->radio_chanspec) ?
-							(PHY_LESI_ON(pi) ? 100 : 255) :
-							(PHY_LESI_ON(pi) ? 200 : 255);
-					}
-					if (rt->pulses[i].fm >= fm_thrs) {
-						rt->pulses[j] = rt->pulses[i];
-						j++;
-					}
-#ifdef BCMDBG
-					else {
-						if ((rparams->radar_args.feature_mask &
-							RADAR_FEATURE_DEBUG_SHORT_PULSE) != 0) {
-							PHY_RADAR(("\nShort pulses fail absolute"
-							" fm value check"));
-						}
-					}
-#endif /* BCMDBG */
+			if (radar_thrs2->fm_chk_opt & EXT_FM_ABS_CHK_SP) {
+				if (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG) {
+					fm_chk_pw_thrs1 = (radar_thrs2->fm_chk_pw >> 8) & 0xff;
+					fm_chk_pw_thrs2 = radar_thrs2->fm_chk_pw & 0xff;
 				}
+				if (sec_pll == TRUE) {
+					/* set fm_thrs = -5 for A1 to pass p1c absolute fm check */
+					fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
+						? (int16)radar_thrs2->fm_thresh_p1c : -5;
+				} else if (rt->pulses[i].pw < fm_chk_pw_thrs1) {
+					fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
+						? radar_thrs2->fm_thresh_sp1 :
+						CHSPEC_IS20(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[0] : fm_thrs_sp[0]) :
+						CHSPEC_IS40(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[3] : fm_thrs_sp[3]) :
+						CHSPEC_IS80(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[6] : fm_thrs_sp[6]) :
+						(PHY_LESI_ON(pi) ? fm_thrs_sp_lesi[9] :
+						fm_thrs_sp[9]);
+				} else if (rt->pulses[i].pw >= fm_chk_pw_thrs1 &&
+					rt->pulses[i].pw < fm_chk_pw_thrs2) {
+					fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
+						? radar_thrs2->fm_thresh_sp2 :
+						CHSPEC_IS20(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[1] : fm_thrs_sp[1]) :
+						CHSPEC_IS40(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[4] : fm_thrs_sp[4]) :
+						CHSPEC_IS80(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[7] : fm_thrs_sp[7]) :
+						(PHY_LESI_ON(pi) ? fm_thrs_sp_lesi[10] :
+						fm_thrs_sp[10]);
+				} else if (rt->pulses[i].pw >= fm_chk_pw_thrs2) {
+					fm_thrs = (radar_thrs2->fm_chk_opt & EXT_FM_CHK_DBG)
+						? radar_thrs2->fm_thresh_sp3 :
+						CHSPEC_IS20(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[2] : fm_thrs_sp[2]) :
+						CHSPEC_IS40(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[5] : fm_thrs_sp[5]) :
+						CHSPEC_IS80(pi->radio_chanspec) ? (PHY_LESI_ON(pi) ?
+						fm_thrs_sp_lesi[8] : fm_thrs_sp[8]) :
+						(PHY_LESI_ON(pi) ? fm_thrs_sp_lesi[11] :
+						fm_thrs_sp[11]);
+				}
+				if (rt->pulses[i].fm >= fm_thrs) {
+					rt->pulses[j] = rt->pulses[i];
+					j++;
+				}
+#ifdef BCMDBG
+				else {
+					if ((rparams->radar_args.feature_mask &
+						RADAR_FEATURE_DEBUG_SHORT_PULSE) != 0) {
+						PHY_RADAR(("\nShort pulses fail absolute"
+						" fm value check"));
+					}
+				}
+#endif /* BCMDBG */
 			} else {
 				if (rt->pulses[i].fm >= fm_thrs) {
 					rt->pulses[j] = rt->pulses[i];

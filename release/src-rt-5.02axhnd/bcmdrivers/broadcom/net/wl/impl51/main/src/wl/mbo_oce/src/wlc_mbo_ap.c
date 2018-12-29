@@ -872,6 +872,10 @@ wlc_mbo_parse_ie(void *ctx, wlc_iem_parse_data_t *data)
 			break;
 		}
 	}
+
+	/* Update SCB3 flag for MBO capable Station */
+	scb->flags3 |= SCB3_MBO;
+
 	return BCME_OK;
 }
 

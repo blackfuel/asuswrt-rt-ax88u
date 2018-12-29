@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_chanmgr.c 766664 2018-08-09 08:50:20Z $
+ * $Id: phy_chanmgr.c 767249 2018-08-31 21:16:34Z $
  */
 
 #include <phy_cfg.h>
@@ -324,19 +324,16 @@ int
 phy_chanmgr_set_oper(phy_info_t *pi, chanspec_t chanspec)
 {
 	/* This API is called or must be called after wlc_phy_chanspec_set */
+	phy_chanmgr_notif_data_t data;
 	ASSERT(pi->radio_chanspec == chanspec);
-	if (chanspec != pi->chanmgri->prev_chanspec) {
-		phy_chanmgr_notif_data_t data;
-		PHY_TRACE(("phy_chanmgr_set_oper: 0x%x\n", chanspec));
 
-		data.event = PHY_CHANMGR_NOTIF_OPCH_CHG;
-		data.new = chanspec;
-		data.old = pi->chanmgri->prev_chanspec;
+	PHY_TRACE(("phy_chanmgr_set_oper: 0x%x\n", chanspec));
 
-		return phy_chanmgr_notif_signal(pi->chanmgr_notifi, &data, TRUE);
-	} else {
-		return BCME_OK; /* Channel has not changed; do nothing */
-	}
+	data.event = PHY_CHANMGR_NOTIF_OPCH_CHG;
+	data.new = chanspec;
+	data.old = pi->chanmgri->prev_chanspec;
+
+	return phy_chanmgr_notif_signal(pi->chanmgr_notifi, &data, TRUE);
 }
 
 /*
@@ -500,6 +497,15 @@ phy_chanmgr_tdcs_enable_160m(phy_info_t *pi, bool set_val)
 
 	if (fns->tdcs_enable_160m != NULL)
 		(fns->tdcs_enable_160m)(pi, set_val);
+}
+
+void
+phy_chanmgr_dccal_force(phy_info_t *pi)
+{
+	phy_type_chanmgr_fns_t *fns = pi->chanmgri->fns;
+
+	if (fns->dccal_force != NULL)
+		(fns->dccal_force)(pi);
 }
 
 /* **************************************** */

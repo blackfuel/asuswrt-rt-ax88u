@@ -242,7 +242,7 @@ const bcm_iovar_t airiq_iovars[] = {
 	IOV_LTE_U_SCAN_START, (0), (0), IOVT_UINT16, 0
 	},
 	{ "lte_u_scan_abort",
-	IOV_LTE_U_SCAN_ABORT, (0),  (0),IOVT_UINT16, 0
+	IOV_LTE_U_SCAN_ABORT, (0),  (0), IOVT_UINT16, 0
 	},
 	{ "lte_u_debug_capture",
 	IOV_LTE_U_DEBUG_CAPTURE, (0), (0), IOVT_UINT32, 0
@@ -569,7 +569,7 @@ airiq_doiovar(void *hdl, uint32 actionid, 	void *p, uint plen,
 	case IOV_SVAL(IOV_AIRIQ_TXTONE):
 	{
 		if (int_val == 0) {
-			wlc_phy_stopplayback_acphy(pi,STOPPLAYBACK_W_CCA_RESET);
+			wlc_phy_stopplayback_acphy(pi, STOPPLAYBACK_W_CCA_RESET);
 		} else {
 			phy_iq_est_t loopback_rx_iq[PHY_CORE_MAX];
 			int32 freq_khz = int_val / 2;

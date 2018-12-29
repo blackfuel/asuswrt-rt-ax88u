@@ -292,7 +292,7 @@ chanim_upd_acs_record(chanim_info_t *ch_info, chanspec_t selected, uint8 trigger
 {
 	chanim_acs_record_t* cur_record = &ch_info->record[chanim_mark(ch_info).record_idx];
 	chanim_stats_t *cur_stats = &ch_info->stats[chanim_mark(ch_info).stats_idx];
-	time_t now = time(NULL);
+	time_t now = uptime();
 
 	bzero(cur_record, sizeof(chanim_acs_record_t));
 
@@ -319,7 +319,7 @@ chanim_chk_lockout(chanim_info_t *ch_info)
 	uint8 cur_idx = chanim_mark(ch_info).record_idx;
 	uint8 start_idx;
 	chanim_acs_record_t *start_record;
-	time_t now = time(NULL);
+	time_t now = uptime();
 	time_t passed = 0;
 	int i, j;
 
@@ -361,7 +361,7 @@ chanim_upd_state(acs_chaninfo_t * c_info)
 	int ret = 0;
 	chanim_info_t * ch_info = c_info->chanim_info;
 	uint8 cur_state = chanim_mark(ch_info).state;
-	time_t now = time(NULL);
+	time_t now = uptime();
 	bool detected = chanim_intf_detected(ch_info);
 
 	ACSD_DEBUG("current time: %ld\n", now);

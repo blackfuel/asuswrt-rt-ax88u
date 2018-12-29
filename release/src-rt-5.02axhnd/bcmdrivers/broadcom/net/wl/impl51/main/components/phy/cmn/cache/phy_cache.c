@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_cache.c 743056 2018-01-24 15:24:31Z $
+ * $Id: phy_cache.c 767767 2018-09-25 19:06:32Z $
  */
 
 #include <phy_cfg.h>
@@ -394,7 +394,6 @@ BCMUNINITFN(phy_cache_down)(phy_init_ctx_t *ctx)
 
 	/* Free the buffer block if last slice to go down */
 	if (calbuf->cal_cache_buf && !moreslicesup && wlapi_obj_registry_islast(pi->sh->physhim)) {
-	    printf("============ [%s][%d] I am here ==============\n", __FUNCTION__, __LINE__);
 		phy_mfree(pi, calbuf->cal_cache_buf,
 				calbuf->cal_cache_buf_sz);
 		calbuf->cal_cache_buf = NULL;

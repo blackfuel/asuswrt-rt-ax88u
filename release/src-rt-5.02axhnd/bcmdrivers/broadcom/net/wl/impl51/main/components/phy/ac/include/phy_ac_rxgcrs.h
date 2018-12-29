@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_rxgcrs.h 759965 2018-04-27 08:01:39Z $
+ * $Id: phy_ac_rxgcrs.h 766436 2018-08-01 20:33:15Z $
  */
 
 #ifndef _phy_ac_rxgcrs_h_
@@ -294,6 +294,7 @@ extern void phy_ac_get_rxgains_ctrl(phy_info_t *pi, int8 *rx_gains, int8 *input_
 extern void chanspec_setup_rxgcrs(phy_info_t *pi);
 extern void phy_ac_rxgcrs_set_mclip_agc_en(phy_info_t *pi, bool en);
 extern bool phy_ac_rxgcrs_get_cap_lesi(phy_info_t *pi);
+extern void phy_ac_rxcgrs_restore_force_crsmin(phy_info_t *pi);
 bool phy_ac_rxgcrs_get_cap_mclip_agc_en(phy_info_t *pi);
 bool phy_ac_rxgcrs_get_cap_lesi(phy_info_t *pi);
 #ifdef WL11ULB

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_tssical.c 739019 2018-01-04 20:00:32Z $
+ * $Id: phy_tssical.c 766697 2018-08-10 00:10:49Z $
  */
 
 #include <phy_cfg.h>
@@ -121,6 +121,10 @@ struct phy_tssical_mem {
 };
 
 /* local function declaration */
+#if defined(WLC_TXCAL) || (defined(WLOLPC) && !defined(WLOLPC_DISABLED))
+static void
+phy_tssical_read_olpc_thresholds(phy_info_t *pi, phy_tssical_info_t *cmn_info, int8 default_thresh);
+#endif /* (WLC_TXCAL) || (defined(WLOLPC) && !defined(WLOLPC_DISABLED)) */
 #ifdef WLC_TXCAL
 static void
 phy_tssical_read_olpc_params(phy_info_t *pi, phy_tssical_info_t *cmn_info);
@@ -176,6 +180,9 @@ BCMATTACHFN(phy_tssical_attach)(phy_info_t *pi)
 	pwr_tssi_lut_5G80->txcal_pwr_tssi = &(mem->txcal_pwr_tssi_5G80);
 
 	phy_tssical_read_olpc_params(pi, cmn_info);
+#elif defined(WLOLPC) && !defined(WLOLPC_DISABLED)
+	/* Else try to read a subset of olpc thresholds, available in srom18 */
+	phy_tssical_read_olpc_thresholds(pi, cmn_info, WL_RATE_DISABLED);
 #endif /* WLC_TXCAL */
 
 	return cmn_info;
@@ -449,6 +456,77 @@ phy_tssical_do_dummy_tx(phy_info_t *pi, bool ofdm, bool pa_on)
 
 	return BCME_OK;
 }
+
+#if defined(WLC_TXCAL) || (defined(WLOLPC) && !defined(WLOLPC_DISABLED))
+/* phy_tssical_read_olpc_thresholds - special handing for
+ * acquiring olpc thresholds (tssi visibility thresholds), which
+ * may be stored in nvram and/or srom.
+ */
+static void
+BCMATTACHFN(phy_tssical_read_olpc_thresholds)(phy_info_t *pi,
+		phy_tssical_info_t *info,
+		int8 default_thresh)
+{
+	int thresholds_present;
+	/* Traditional naming for olpc thresholds held in NVRAM:
+	 *  "olpc_thresh2g" and "olpc_thresh5g"
+	 * New naming for olpc thresholds stored in SROM:
+	 *  "olpc_2g_th" and "olpc_5g_th"
+	 * Default to reading olpc thresholds from nvram.
+	 */
+	const char *olpc_thresh2g_name = rstr_olpc_thresh2g;
+	const char *olpc_thresh5g_name = rstr_olpc_thresh5g;
+
+	ASSERT(info);
+
+#ifdef WLC_TXCAL
+	 /* For WLC_TXCAL builds, expect thresholds exist in nvram */
+	thresholds_present = TRUE;
+#else
+	/* Try to load olpc 2g and 5g thresolds from non-volatile memory
+	 * under the following cases
+	 * 1) srom18 may include olpc thresholds, if the appropriate
+	 *	  boardflags is set
+	 * 2) else if no srom, the values may be programmed in nvram. This
+	 *    is typical for RSDB chips (which don't support srom I/O pins),
+	 *    and for some production boards (that don't populate the EEPROM).
+	 * 3) else, traditionally, the thresholds are not available, unless
+	 *    special development scenarios, like WLC_TXCAL.
+	 */
+	thresholds_present = FALSE;
+#endif // endif
+
+	if (SROMREV(pi->sh->sromrev) >= 18) {
+		/* SROM ver 18 includes olpc threhold values for 2g and 5g
+		 * ('olpc_2g5g_th' at word offset 637), but they must
+		 * be enabled by boardflags4[uint32 bit 17].
+		 */
+		if (pi->sh->boardflags4 & BFL4_SROM18_OLPC_THRESH_EN) {
+			thresholds_present = TRUE;
+			/* SROM values are differentiated from NVRAM values by name */
+			olpc_thresh2g_name = rstr_olpc_thresh2g_srom;
+			olpc_thresh5g_name = rstr_olpc_thresh5g_srom;
+		}
+	} else {
+		/* Other platforms, e.g., 47452 et. al, may not have SROMs,
+		 * so always allow nvram checking when srom is absent.
+		 */
+		if (!si_is_sprom_available(pi->sh->sih)) {
+			thresholds_present = TRUE;
+		}
+	}
+
+	if (thresholds_present) {
+		info->olpc_thresh2g = (int8) (PHY_GETINTVAR_DEFAULT_SLICE(pi,
+		   olpc_thresh2g_name, default_thresh));
+		info->olpc_thresh5g = (int8) (PHY_GETINTVAR_DEFAULT_SLICE(pi,
+		   olpc_thresh5g_name, default_thresh));
+	} else {
+		info->olpc_thresh2g = (int8) WL_RATE_DISABLED;
+		info->olpc_thresh5g = (int8) WL_RATE_DISABLED;
+	}
+}
+#endif /* (WLC_TXCAL) || (defined(WLOLPC) && !defined(WLOLPC_DISABLED)) */
 
 #ifdef WLC_TXCAL
 static void
@@ -1248,7 +1326,6 @@ phy_tssical_set_olpc_threshold(phy_tssical_info_t *tssicali)
 }
 #endif /* WLC_TXCAL */
 
-#ifdef WL_EAP_OLPC
 int8 phy_tssical_get_olpc_threshold2g(phy_tssical_info_t *tssicali)
 {
 	return (tssicali->olpc_thresh2g);
@@ -1258,4 +1335,15 @@ int8 phy_tssical_get_olpc_threshold5g(phy_tssical_info_t *tssicali)
 {
 	return (tssicali->olpc_thresh5g);
 }
-#endif /* WL_EAP_OLPC */
+
+#if defined(WLTEST)
+void phy_tssical_set_olpc_threshold2g(phy_tssical_info_t *tssicali, int8 val)
+{
+	tssicali->olpc_thresh2g = val;
+}
+
+void phy_tssical_set_olpc_threshold5g(phy_tssical_info_t *tssicali, int8 val)
+{
+	tssicali->olpc_thresh5g = val;
+}
+#endif // endif

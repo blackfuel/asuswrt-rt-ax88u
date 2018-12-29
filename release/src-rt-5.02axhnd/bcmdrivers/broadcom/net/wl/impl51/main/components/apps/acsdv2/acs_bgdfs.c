@@ -168,7 +168,7 @@ acs_bgdfs_attempt(acs_chaninfo_t * c_info, chanspec_t chspec, bool stunt)
 
 	ACSD_INFO("%s####Attempting 3+1 on channel 0x%4x (%s)\n", c_info->name, chspec, wf_chspec_ntoa(chspec, chanspecbuf));
 	if ((ret = acs_bgdfs_set(c_info, chspec)) == BCME_OK) {
-		time_t now = time(NULL);
+		time_t now = uptime();
 		bool is_dfs_weather = acs_is_dfs_weather_chanspec(c_info, chspec);
 		acs_bgdfs->state = BGDFS_STATE_MOVE_REQUESTED;
 		acs_bgdfs->timeout = now +
@@ -261,7 +261,7 @@ acs_bgdfs_choose_channel(acs_chaninfo_t * c_info, bool include_unclear,	bool pic
 	uint64 cand_ts = 0, best_ts = 0; /* recent time stamp in acs record */
 	uint32 cand_chinfo;
 	uint32 requisite = WL_CHAN_VALID_HW | WL_CHAN_VALID_SW | WL_CHAN_BAND_5G | WL_CHAN_RADAR;
-	uint64 now = (uint64)(time(NULL));
+	uint64 now = (uint64)(uptime());
 
 	ch_candidate_t *cand_arr;
 	int bw = ACS_BW_80;

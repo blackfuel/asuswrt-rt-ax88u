@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_radar.c 765936 2018-07-20 02:22:37Z $
+ * $Id: phy_ac_radar.c 767497 2018-09-13 09:32:10Z $
  */
 
 #include <typedefs.h>
@@ -214,7 +214,7 @@ static const wl_radar_thr2_t BCMATTACHDATA(wlc_phy_radar_thresh2_acphy) = {
 	0x6b4, 0x30, 0x6b4, 0x30, 0x6b4, 0x30, 0x6b4, 0x30, 0x6b4, 0x30, 0x6b8, 0x30,
 	0x6b4, 0x30, 0x6b4, 0x30, //SC core
 	0xa, 0xa, 0xa, 0x258, 0x258, 0x258, 0x258, 0x4, 0xc,
-	0xe, 0x193c, 0x19, 0x0, 0x0, 0x0, 0xf0, 0x0, 0x5
+	0x8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
 	// fc_varth_sb = 10, fc_varth_bin5_sb = 10
 	// notradar_enb = 2'b1010, [3]: normal core lp, [2]: normal core non-lp
 	// [1]: scan core lp, [0]: scan core non-lp
@@ -223,19 +223,19 @@ static const wl_radar_thr2_t BCMATTACHDATA(wlc_phy_radar_thresh2_acphy) = {
 	// highpow_war_enb = 2'b0110, [0]: highpow WAR, [1]: chirp criterion
 	// [2-3]: min_fm_lp of scan core
 	// highpow_sp_ratio = 5
-	// fm_chk_opt = 2'b1110, [0]: fm check debug mode, [1]: absolute fm check,
+	// fm_chk_opt = 2'b1000, [0]: fm check debug mode, [1]: absolute fm check,
 	// [2]: fm variation check, [3]: ETSI4 absolute fm check
-	// fm_chk_pw = 0x193c, [0-7]: fm_chk_pw_thrs2 = 25,
-	// [8-15]: fm_chk_pw_thrs1 = 60, fm_var_chk_pw = 25
+	// fm_chk_pw = 0x0, [0-7]: fm_chk_pw_thrs2 = 0,
+	// [8-15]: fm_chk_pw_thrs1 = 0, fm_var_chk_pw = 0
 	// fm_thresh_sp1 = 0, fm_thresh_sp2 = 0, fm_thresh_sp3 = 0
-	// fm_thresh_etsi = 240, fm_thresh_p1c = 0, fm_tol_div = 5
+	// fm_thresh_etsi4 = 0, fm_thresh_p1c = 0, fm_tol_div = 0
 };
 
 static const wl_radar_thr2_t BCMATTACHDATA(wlc_phy_radar_thresh2_axphy_43684) = {
 	WL_RADAR_THR_VERSION,
-	0x6a8, 0x30, 0x6ac, 0x30, 0x6b0, 0x30, 0x6a4, 0x30, 0x6a4, 0x30, 0x6ac, 0x30,
-	0x6a4, 0x20, 0x6a4, 0x30, 0xa, 0xa, 0xa, 0x258, 0x258, 0x258, 0x258, 0x4, 0xc,
-	0xe, 0x193c, 0x19, 0x0, 0x14, 0x64, 0xf0, 0xfffb, 0x5
+	0x6a4, 0x30, 0x6ac, 0x30, 0x6b0, 0x30, 0x6a4, 0x30, 0x6a4, 0x30, 0x6b0, 0x30,
+	0x6b0, 0x30, 0x6ac, 0x30, 0xa, 0xa, 0xa, 0x258, 0x258, 0x258, 0x258, 0x4, 0xc,
+	0xe, 0x1941, 0x19, 0x0, 0x14, 0x64, 0xf0, 0xfffb, 0x5
 };
 
 static void
@@ -409,6 +409,7 @@ WLBANDINITFN(phy_ac_radar_init)(phy_type_radar_ctx_t *ctx, bool on)
 	phy_radar_info_t *ri = info->ri;
 	phy_info_t *pi = info->pi;
 	phy_radar_st_t *st;
+	uint16 valRadarBlankCtrl2 = 0;
 
 	PHY_TRACE(("%s: init %d\n", __FUNCTION__, on));
 
@@ -476,12 +477,21 @@ WLBANDINITFN(phy_ac_radar_init)(phy_type_radar_ctx_t *ctx, bool on)
 		phy_utils_write_phyreg(pi, ACPHY_FMDemodConfig(pi->pubpi->phy_rev),
 			st->rparams.radar_args.fmdemodcfg);
 		if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
-			/* enable detection during sig field1/2 decode state to improve
-			 * BW160 CH50 FCC-4 miss-detect on DC
-			 */
+			if (PHY_LESI_ON(pi) && CHSPEC_IS160(pi->radio_chanspec)) {
+				/* enable detection during sig field1/2 decode state to
+				 * improve BW160 FCC-4 miss-detect on DC
+				 */
+				valRadarBlankCtrl2 = 0x5c88;
+			} else if (CHSPEC_IS80(pi->radio_chanspec) &&
+				(CHSPEC_CHANNEL(pi->radio_chanspec) <=
+				WL_THRESHOLD_LO_BAND) && (READ_PHYREGFLD(pi,
+				RadarBlankCtrl2, radarSigDecode1BlankEn) == 0)) {
+				valRadarBlankCtrl2 = 0x5e88;
+			} else {
+				valRadarBlankCtrl2 = 0x5f88;
+			}
 			phy_utils_write_phyreg(pi, ACPHY_RadarBlankCtrl2(pi->pubpi->phy_rev),
-				(PHY_LESI_ON(pi) && CHSPEC_IS160(pi->radio_chanspec)) ?
-				0x5c88 : 0x5f88);
+				valRadarBlankCtrl2);
 		} else {
 			phy_utils_write_phyreg(pi, ACPHY_RadarBlankCtrl2(pi->pubpi->phy_rev),
 				0x5f88);

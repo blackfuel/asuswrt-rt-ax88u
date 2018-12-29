@@ -312,7 +312,7 @@ function submitForm(){
 	else if(parent.flag_manual == "modem")
 		document.form.action = "/qis/QIS_modem.htm";
 	else if(parent.document.QKform.sw_mode.value == "1"){
-		if((based_modelid == "GT-AX96U" || based_modelid == "GT-AC9600") && (phy_port_state.portSpeed["WAN 1"] != "X" || phy_port_state.portSpeed["SFP+"] != "X")){
+		if((based_modelid == "GX-AX6000" || based_modelid == "GT-AC9600") && (phy_port_state.portSpeed["WAN 1"] != "X" || phy_port_state.portSpeed["SFP+"] != "X")){
 			document.form.action = "/qis/QIS_wireless.htm";
 		}
 		else if((based_modelid == "GT-AX11000") && phy_port_state.portSpeed["LAN 5"] != "X"){

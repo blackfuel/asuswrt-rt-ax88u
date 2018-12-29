@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_radar_st.h 707571 2017-06-28 07:15:54Z $
+ * $Id: phy_radar_st.h 767730 2018-09-25 03:30:30Z $
  */
 
 #ifndef _phy_radar_st_
@@ -107,6 +107,20 @@
 #define RDR_SDEPTH_EXTRA_PULSES 1
 #define TONEDETECTION 1
 #define LPQUANT 128
+/* below definitions for chanset_elna_chk */
+#define NC_CHAN_2GBW20 0x1
+#define NC_CHAN_2GBW40 0x2
+#define SC_CHAN_2GBW20 0x4
+#define SC_CHAN_2GBW40 0x8
+#define NC_CHAN_5GBW20 0x10
+#define NC_CHAN_5GBW40 0x20
+#define NC_CHAN_5GBW80 0x40
+#define NC_CHAN_5GBW160 0x80
+#define SC_CHAN_5GBW20 0x100
+#define SC_CHAN_5GBW40 0x200
+#define SC_CHAN_5GBW80 0x400
+#define SC_CHAN_5GBW160 0x800
+#define EXT_LNA_5G_OFF 0x1000
 
 typedef struct {
 	wl_radar_args_t radar_args;	/* radar detection parametners */
@@ -164,6 +178,7 @@ typedef struct {
 	radar_lp_info_t	*radar_work_lp_sc;	/* scan core radar persistent info */
 	wl_radar_status_t *radar_status_sc;	/* dump/clear radar status */
 	bool first_radar_indicator_sc;	/* first radar indicator */
+	uint16 chanset_elna_chk;
 } phy_radar_st_t;
 
 /*

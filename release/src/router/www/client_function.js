@@ -289,7 +289,7 @@ function getUploadIcon(clientMac) {
 			setTimeout("getUploadIcon('" + clientMac + "');", 1000);
 		},
 		success: function(response){
-			result = upload_icon;
+			result = htmlEnDeCode.htmlEncode(upload_icon);
 		}
 	});
 	return result
@@ -2201,7 +2201,8 @@ function updateClientListView(){
 				if((isJsonChanged(originData, originDataTmp) || originData.fromNetworkmapd == "") && !edit_client_name_flag && !slideFlag){
 					create_clientlist_listview();
 					sorterClientList();
-					parent.show_client_status(totalClientNum.online);
+					if(parent.show_client_status != undefined)
+						parent.show_client_status(totalClientNum.online);
 				}
 				setTimeout("updateClientListView();", 3000);	
 			}

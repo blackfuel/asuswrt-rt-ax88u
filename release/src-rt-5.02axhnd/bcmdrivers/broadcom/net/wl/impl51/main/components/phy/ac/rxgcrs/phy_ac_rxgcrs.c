@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_rxgcrs.c 765592 2018-07-10 00:11:34Z $
+ * $Id: phy_ac_rxgcrs.c 767241 2018-08-31 13:45:54Z $
  */
 
 #include <phy_cfg.h>
@@ -220,6 +220,7 @@ struct phy_ac_rxgcrs_info {
 	bool	thresh_noise_cal; /* enable/disable additional entries in noise cal table */
 	bool	crsmincal_enable;		/* Flag for enabling auto crsminpower cal */
 	bool	force_crsmincal;
+	uint16  force_crsminval;
 	bool	mdgain_trtx_allowed;
 	/* lesi */
 	bool lesi_cap, lesi_on;
@@ -4274,9 +4275,11 @@ phy_ac_desense_update_crsmin(phy_info_t *pi, uint8 crsmin_init, int8 crsmin_high
 		phy_ac_rxgcrs_set_crs_min_pwr(pi, crsmin_thresh,
 			0, 0, 0, 0);
 	} else {
-		phy_ac_rxgcrs_set_crs_min_pwr(pi, MAX(crsmin_thresh,
-			pi->u.pi_acphy->rxgcrsi->phy_crs_th_from_crs_cal),
-			0, 0, 0, 0);
+		if (pi->u.pi_acphy->rxgcrsi->crsmincal_enable == TRUE) {
+			phy_ac_rxgcrs_set_crs_min_pwr(pi, MAX(crsmin_thresh,
+				pi->u.pi_acphy->rxgcrsi->phy_crs_th_from_crs_cal),
+				0, 0, 0, 0);
+		}
 	}
 
 	/* crs high_gain */
@@ -5881,6 +5884,7 @@ void wlc_phy_force_crsmin_acphy(phy_info_t *pi, void *p)
 		phy_noise_sched_set((wlc_phy_t *)pi, PHY_FORCEMEASURE_MODE,
 			save_phynoise_disable);
 		pi->u.pi_acphy->rxgcrsi->crsmincal_enable = TRUE;
+		pi->u.pi_acphy->rxgcrsi->force_crsminval = 0;
 
 		// run it once to restore cached values
 		(void) phy_ac_rxgcrs_min_pwr_cal(pi->u.pi_acphy->rxgcrsi, PHY_CRS_SET_FROM_CACHE);
@@ -5889,6 +5893,7 @@ void wlc_phy_force_crsmin_acphy(phy_info_t *pi, void *p)
 		PHY_CAL(("Setting default crsmin: %d\n", ACPHY_CRSMIN_DEFAULT));
 		phy_ac_rxgcrs_set_crs_min_pwr(pi, ACPHY_CRSMIN_DEFAULT, 0, 0, 0, 0);
 		pi->u.pi_acphy->rxgcrsi->crsmincal_enable = FALSE;
+		pi->u.pi_acphy->rxgcrsi->force_crsminval = ACPHY_CRSMIN_DEFAULT;
 	} else {
 		/* Set the crsmin power value to be 'set_crs_thr' */
 		PHY_CAL(("Setting crsmin: %d %d %d %d\n",
@@ -5896,6 +5901,7 @@ void wlc_phy_force_crsmin_acphy(phy_info_t *pi, void *p)
 		phy_ac_rxgcrs_set_crs_min_pwr(pi, set_crs_thr[0], 0, set_crs_thr[1],
 			set_crs_thr[2], set_crs_thr[3]);
 		pi->u.pi_acphy->rxgcrsi->crsmincal_enable = FALSE;
+		pi->u.pi_acphy->rxgcrsi->force_crsminval = set_crs_thr[0];
 	}
 
 	/* Restore Rx chains */
@@ -10318,7 +10324,6 @@ phy_ac_rxgcrs_cal(phy_ac_rxgcrs_info_t *rxgcrsi, uint8 enULB)
 
 			rxgcrsi->force_crsmincal = TRUE;
 			PHY_CAL(("%s : crsminpwr cal\n", __FUNCTION__));
-			rxgcrsi->force_crsmincal = TRUE;
 			if (ACMAJORREV_32(pi->pubpi->phy_rev) ||
 				ACMAJORREV_33(pi->pubpi->phy_rev)) {
 				phy_noise_sample_request_crsmincal((wlc_phy_t*)pi);
@@ -11022,4 +11027,15 @@ bool
 phy_ac_rxgcrs_get_cap_lesi(phy_info_t *pi)
 {
 	return pi->u.pi_acphy->rxgcrsi->lesi_cap;
+}
+
+void phy_ac_rxcgrs_restore_force_crsmin(phy_info_t *pi)
+{
+	uint16 ac_th = pi->u.pi_acphy->rxgcrsi->force_crsminval;
+	if (ac_th > 0) {
+		PHY_CAL(("wl%d: %s Restore force_crs_min = %d\n",
+		         pi->sh->unit, __FUNCTION__, ac_th));
+		phy_ac_rxgcrs_set_crs_min_pwr(pi, ac_th, 0, 0, 0, 0);
+		pi->u.pi_acphy->rxgcrsi->crsmincal_enable = FALSE;
+	}
 }

@@ -216,26 +216,6 @@ function initial(){
 		}
 		cookie.unset("captive_portal_gn_idx");
 	}
-
-	if(dwb_info.mode) {
-		if(isSupport("dualband")) {
-			$("#guest_block" + dwb_info.guest + " > table > tbody > tr > td").eq(dwb_info.band).find(".newGuestNetwork_box_decoration").before("<div class='dwb_hint'>Default setting by AiMesh mode</div>");
-			$("#guest_block" + dwb_info.guest + " > table > tbody > tr > td").eq(dwb_info.band).find(".newGuestNetwork_box_decoration").remove();
-		}
-		else if(isSupport("triband")) {
-			var guest_group_num = gn_array_2g.length;
-			for(var i = 1; i <= guest_group_num; i += 1) {
-				$("#guest_block" + i + " > table > tbody > tr").each(function() {
-					$(this).children('td').eq(dwb_info.band).css("display", "none");
-					$(this).children('td').css("width", "50%");
-					$(this).children('td').each(function() {
-						if($(this).find(".newGuestNetwork_titleName_unedit").text() == "5 GHz-1")
-							$(this).find(".newGuestNetwork_titleName_unedit").text("5 GHz");
-					});
-				});
-			}
-		}
-	}
 }
 
 function change_wl_expire_radio(){

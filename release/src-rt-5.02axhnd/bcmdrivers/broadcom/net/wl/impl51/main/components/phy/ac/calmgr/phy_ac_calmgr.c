@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_calmgr.c 765577 2018-07-09 09:02:14Z $
+ * $Id: phy_ac_calmgr.c 767415 2018-09-11 00:27:51Z $
  */
 
 #include <phy_cfg.h>
@@ -559,6 +559,16 @@ phy_ac_calmgr_singleshot(phy_info_t *pi, uint8 searchmode, acphy_cal_result_t *a
 		wlc_phy_precal_txgain_acphy(pi, accal->txcal_txgain);
 		wlc_phy_cal_txiqlo_acphy(pi, searchmode, FALSE, 0);
 		/* request "Sphase" */
+
+		if (ACMAJORREV_47(pi->pubpi->phy_rev) && (CHSPEC_IS5G(pi->radio_chanspec) == 1)) {
+			/* 43684B0, do 2 TxLO cals for 5G. */
+			wlc_phy_populate_tx_loftcoefluts_acphy(pi, 0, 34);
+			pi->cal_info->cal_phase_id++;
+			wlc_phy_precal_txgain_acphy(pi, accal->txcal_txgain);
+			wlc_phy_cal_txiqlo_acphy(pi, PHY_CAL_SEARCHMODE_REFINE, FALSE, 0);
+			pi->cal_info->cal_phase_id = PHY_CAL_PHASE_IDLE;
+			wlc_phy_populate_tx_loftcoefluts_acphy(pi, 35, 127);
+		}
 	}
 
 	if (ACMAJORREV_36(pi->pubpi->phy_rev)) {

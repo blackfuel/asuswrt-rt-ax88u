@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_rxiqcal.c 765971 2018-07-20 17:29:17Z $
+ * $Id: phy_ac_rxiqcal.c 767859 2018-09-28 01:49:56Z $
  */
 
 #include <phy_cfg.h>
@@ -1182,6 +1182,12 @@ wlc_phy_rxcal_radio_setup_acphy_20698(phy_ac_rxiqcal_info_t *ti)
 
 	FOREACH_CORE(pi, core) {
 		RADIO_REG_LIST_START
+			/* resistive divider common mode setting for LPF */
+			MOD_RADIO_REG_20698_ENTRY(pi, LPF_REG6, core,
+				lpf_bq_cmref_gm, 0)
+			MOD_RADIO_REG_20698_ENTRY(pi, LPF_OVR2, core,
+				ovr_lpf_bq_cmref_gm, 0x1)
+
 			/* Mux AUX path to ADC, disable other paths to ADC */
 			MOD_RADIO_REG_20698_ENTRY(pi, LPF_REG7, core, lpf_sw_bq1_bq2, 0x1)
 			MOD_RADIO_REG_20698_ENTRY(pi, LPF_OVR2, core, ovr_lpf_sw_bq1_bq2, 0x1)
@@ -1213,7 +1219,6 @@ wlc_phy_rxcal_radio_setup_acphy_20698(phy_ac_rxiqcal_info_t *ti)
 				MOD_RADIO_REG_20698_ENTRY(pi, RX2G_REG3, core, rx2g_gm_en, 0x1)
 				MOD_RADIO_REG_20698_ENTRY(pi, RX2G_CFG1_OVR, core,
 					ovr_rx2g_gm_en, 0x1)
-				MOD_RADIO_REG_20698_ENTRY(pi, RX2G_REG3, core, rx2g_gm_ds_en, 0x0)
 
 				/* Rx rccr and rx div2 buf power up/down */
 				MOD_RADIO_REG_20698_ENTRY(pi, LOGEN_CORE_REG0, core,
@@ -1324,8 +1329,10 @@ wlc_phy_rxcal_radio_setup_acphy_20698(phy_ac_rxiqcal_info_t *ti)
 			RADIO_REG_LIST_EXECUTE(pi, core);
 		}
 		MOD_RADIO_REG_20698(pi, TXDAC_REG0, core, iqdac_buf_cmsel, 0);
-		MOD_RADIO_REG_20698(pi, TXDAC_REG1, core, iqdac_lowcm_en, 1);
 		MOD_RADIO_REG_20698(pi, TXDAC_REG0, core, iqdac_attn, 3);
+		MOD_RADIO_REG_20698(pi, TXDAC_REG1, core, iqdac_lowcm_en, 0);
+		MOD_RADIO_REG_20698(pi, TXDAC_REG0, core, iqdac_buf_bw, 3);
+		MOD_RADIO_REG_20698(pi, TX2G_MIX_REG2, core, tx2g_mx_idac_bb, 15);
 	}
 }
 

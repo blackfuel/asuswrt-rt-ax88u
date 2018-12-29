@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_chanmgr.c 766675 2018-08-09 16:00:07Z $
+ * $Id: phy_ac_chanmgr.c 768567 2018-10-17 21:00:23Z $
  */
 
 #include <wlc_cfg.h>
@@ -250,6 +250,7 @@ static int phy_ac_chanmgr_set_smth(phy_type_chanmgr_ctx_t *ctx, int8 int_val);
 #endif /* defined(WLTEST) */
 static void phy_ac_chanmgr_tdcs_enable_160m(phy_info_t *pi, bool set_val);
 static void phy_ac_chanmgr_set_spexp_matrix(phy_info_t *pi);
+static void phy_ac_chanmgr_dccal_force(phy_info_t *pi);
 
 static void femctrl_clb_majrev_ge40(phy_info_t *pi, int band_is_2g, int slice);
 static void wlc_phy_low_pwr_logen_setting(phy_info_t *pi, bool mimo_bf_enable);
@@ -327,6 +328,7 @@ BCMATTACHFN(phy_ac_chanmgr_register_impl)(phy_info_t *pi, phy_ac_info_t *aci,
 	fns.interfmode_upd = phy_ac_chanmgr_upd_interf_mode;
 	fns.preempt = phy_ac_chanmgr_preempt;
 	fns.tdcs_enable_160m = phy_ac_chanmgr_tdcs_enable_160m;
+	fns.dccal_force = phy_ac_chanmgr_dccal_force;
 #if defined(WLTEST)
 	fns.get_smth = phy_ac_chanmgr_get_smth;
 	fns.set_smth = phy_ac_chanmgr_set_smth;
@@ -963,7 +965,7 @@ static const uint8 avvmid_set32[6][5][8] = {
 		{2, 2, 2, 2, 116, 116, 116, 116}},  /* pdet_id = 5 */
 };
 
-static const uint8 avvmid_set47[9][5][8] = {
+static const uint8 avvmid_set47[10][5][8] = {
 	{
 	/* http://confluence.broadcom.com/pages/viewpage.action?pageId=431104865 */
 		{4, 4, 4, 4, 120, 115, 115, 115},
@@ -1019,9 +1021,15 @@ static const uint8 avvmid_set47[9][5][8] = {
 		{5, 5, 5, 5, 50, 50, 50, 50},
 		{5, 5, 5, 5, 50, 50, 50, 50},
 		{5, 5, 5, 5, 50, 50, 50, 50}},  /* pdet_id = 8 */
+	{
+		{4, 4, 4, 4, 70, 70, 70, 70},
+		{2, 2, 2, 2, 125, 125, 125, 125},
+		{2, 2, 2, 2, 125, 125, 125, 125},
+		{2, 2, 2, 2, 125, 125, 125, 125},
+		{2, 2, 2, 2, 125, 125, 125, 125},},  /* pdet_id = 9 */
 };
 
-static const uint8 avvmid_set47_1[9][5][8] = {
+static const uint8 avvmid_set47_1[10][5][8] = {
 	{
 	/* http://confluence.broadcom.com/pages/viewpage.action?pageId=431104865 */
 		{5, 5, 5, 5, 95, 95, 90, 95},
@@ -1073,10 +1081,16 @@ static const uint8 avvmid_set47_1[9][5][8] = {
 		{3, 3, 3, 3, 110, 110, 110, 110}},  /* pdet_id = 7 */
 	{
 		{4, 4, 3, 4, 115, 120, 130, 120},
-		{4, 4, 4, 4, 98, 98, 96, 96},
+		{4, 4, 4, 4, 98, 96, 97, 98},
 		{4, 4, 4, 4, 98, 95, 96, 97},
 		{4, 4, 4, 4, 96, 95, 97, 97},
-		{4, 4, 4, 4, 98, 97, 97, 97}},  /* pdet_id = 8 */
+		{4, 4, 4, 4, 96, 95, 96, 97}},  /* pdet_id = 8 */
+	{
+		{4, 4, 4, 4, 70, 70, 70, 70},
+		{2, 2, 2, 2, 125, 125, 125, 125},
+		{2, 2, 2, 2, 125, 125, 125, 125},
+		{2, 2, 2, 2, 125, 125, 125, 125},
+		{2, 2, 2, 2, 125, 125, 125, 125},},  /* pdet_id = 9 */
 };
 
 static const uint8 avvmid_set47_2[1][5][8] = {
@@ -1950,6 +1964,8 @@ static void chanspec_tune_phy_ACMAJORREV_3(phy_info_t *pi);
 static void chanspec_tune_phy_ACMAJORREV_2(phy_info_t *pi);
 static void chanspec_tune_phy_ACMAJORREV_1(phy_info_t *pi);
 static void chanspec_tune_phy_ACMAJORREV_0(phy_info_t *pi);
+
+static void chanspec_tune_phy_dccal(phy_info_t *pi, bool force);
 
 void wlc_phy_ac_shared_ant_femctrl_master(phy_info_t *pi);
 #if (defined(WL_SISOCHIP) || !defined(SWCTRL_TO_BT_IN_COEX))
@@ -4398,6 +4414,12 @@ wlc_phy_set_reg_on_reset_majorrev32_33_37_47_51(phy_info_t *pi)
 	//   maps to C-model minkept settings for optimal ofdm sensitivity
 	WRITE_PHYREG(pi, FSTRCtrl, 0x7aa);
 
+	// Enable fstr auto-adjust
+	if (ACMAJORREV_47_51(pi->pubpi->phy_rev)) {
+		MOD_PHYREG(pi, FSTRCtrl_he4, cp3p2AdjOverride, 0);
+		MOD_PHYREG(pi, FSTRCtrl_he4, cp1p6AdjOverride, 0);
+	}
+
 	if (ACMAJORREV_47_51(pi->pubpi->phy_rev)) {
 		MOD_PHYREG(pi, FFTSoftReset, lbsdadc_clken_ovr, 1);
 		MOD_PHYREG(pi, RxSdFeConfig5, rx_farow_scale_value, 9);
@@ -4447,9 +4469,6 @@ wlc_phy_set_reg_on_reset_majorrev32_33_37_47_51(phy_info_t *pi)
 		// DCC related regs
 		MOD_PHYREG(pi, RfseqTrigger, en_pkt_proc_dcc_ctrl, 1);
 		WRITE_PHYREG(pi, femctrl_override_control_reg, 0);
-
-		// initialize DC related regs
-		phy_ac_dccal_init(pi);
 
 		// mclip related(sparereg_1_for_div_1x1 = mclip_agc_ENABLED)
 		MOD_PHYREG(pi, moved_from_sparereg, sparereg_1_for_div_1x1,
@@ -4502,11 +4521,33 @@ wlc_phy_set_reg_on_reset_majorrev32_33_37_47_51(phy_info_t *pi)
 		MOD_PHYREG(pi, HEDetectionConfig, lsig_length_min_hedetection, 0);
 
 		MOD_PHYREG(pi, rx1misc_0, rstCmpPwrAftrVht, 0); /* Pulakesh */
+
+		/* Disable rifs for 11ac & 11ax */
+		MOD_PHYREG(pi, rx1misc_0, useRifsCntrOnlyVhtHe, 1);
 	}
 
 	// Temporary disable 11b/ag txerror check
 	if (ACMAJORREV_47_51(pi->pubpi->phy_rev) && !ACMINORREV_0(pi)) {
 		MOD_PHYREG(pi, phytxerrorMaskReg3, miscmask, 0);
+
+		/* Disable rifs for 11ac & 11ax */
+		MOD_PHYREG(pi, rx1misc_0, useRifsCntrOnlyVhtHe, 1);
+	}
+
+	/* Enable last symbol pilot only phest (only for 20MHz/ru242 HE) */
+	if (ACMAJORREV_47(pi->pubpi->phy_rev) && ACMINORREV_GE(pi, 1)) {
+		MOD_PHYREG(pi, DemodmodeControl, enPhestPilotOnlyForHeLastSymbol, 1);
+	}
+
+	if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
+		/* Change IIR filter shape to solve FLATNESS issue for BW160 */
+		WRITE_PHYREG(pi, txfilt160st0a1, 0xfa1);
+		WRITE_PHYREG(pi, txfilt160st0a2, 0x34f);
+		WRITE_PHYREG(pi, txfilt160st1a1, 0xe5c);
+		WRITE_PHYREG(pi, txfilt160st1a2, 0x20c);
+		WRITE_PHYREG(pi, txfilt160st2a1, 0xc8d);
+		WRITE_PHYREG(pi, txfilt160st2a2, 0x10d);
+		WRITE_PHYREG(pi, txfilt160finescale, 0xad);
 	}
 }
 
@@ -5564,9 +5605,6 @@ wlc_phy_set_reg_on_reset_acphy(phy_info_t *pi)
 		/* Enable MRC SIG QUAL for 43684B0 */
 		if (!ACMINORREV_0(pi))
 			MOD_PHYREG(pi, MrcSigQualControl0, enableMrcSigQual, 0x1);
-
-		/* FOR PER humps around -40 dBm (late clip2) */
-		WRITE_PHYREG(pi, clip2carrierDetLen, 56);
 	}
 
 	if (ACMAJORREV_47_51(pi->pubpi->phy_rev)) {
@@ -5583,6 +5621,8 @@ wlc_phy_set_reg_on_reset_acphy(phy_info_t *pi)
 	if (ACMAJORREV_47(pi->pubpi->phy_rev) && !ACMINORREV_0(pi)) {
 		WRITE_PHYREG(pi, bfdsConfig3_spatialCoef, 0xC0);
 		WRITE_PHYREG(pi, bfdsConfig4_spatialCoef, 0x141);
+		WRITE_PHYREG(pi, bfdsConfig5_spatialCoef, 0xC0);
+		WRITE_PHYREG(pi, bfdsConfig6_spatialCoef, 0x141);
 	}
 }
 
@@ -7005,7 +7045,7 @@ wlc_phy_set_regtbl_on_bw_change_acphy(phy_info_t *pi)
 	uint32 NvAdjAXVal;
 	uint8 lpf_txbq1[] = {0, 0, 0, 0}, lpf_txbq2[] = {4, 5, 6, 7};
 	uint8 lpf_rxbq1[] = {0, 1, 2, 3}, lpf_rxbq2[] = {0, 1, 2, 3};
-	uint16 x, NvAdjAXStartTone, NvAdjAXEndTone;
+	uint16 x, NvAdjAXStartTone, NvAdjAXEndTone, val;
 
 	stall_val = READ_PHYREGFLD(pi, RxFeCtrl1, disable_stalls);
 	ACPHY_DISABLE_STALL(pi);
@@ -7429,8 +7469,7 @@ wlc_phy_set_regtbl_on_bw_change_acphy(phy_info_t *pi)
 	}
 
 	if (ACMAJORREV_33(pi->pubpi->phy_rev) ||
-	    ACMAJORREV_37(pi->pubpi->phy_rev) ||
-	    ACMAJORREV_47_51(pi->pubpi->phy_rev)) {
+	    ACMAJORREV_37(pi->pubpi->phy_rev)) {
 		if (CHSPEC_IS20(pi->radio_chanspec))
 			MOD_PHYREG(pi, FSTRCtrl, sgiLtrnAdjMax, 7);
 		else
@@ -7533,6 +7572,20 @@ wlc_phy_set_regtbl_on_bw_change_acphy(phy_info_t *pi)
 			wlc_phy_table_write_acphy(pi, ACPHY_TBL_ID_NVADJ11AXTBL,
 				1, 256-x, 32, &NvAdjAXVal);
 		}
+
+		// Enable fft-in shift with BW utilization <= 12.5 %
+		if (CHSPEC_IS160(pi->radio_chanspec)) {
+			WRITE_PHYREG(pi, fft_backoff_cont_0, 0x1011);
+			WRITE_PHYREG(pi, fft_backoff_cont_1, 0x1100);
+		} else {
+			WRITE_PHYREG(pi, fft_backoff_cont_0, 0x0);
+			WRITE_PHYREG(pi, fft_backoff_cont_1, 0x0);
+		}
+
+		/* Avoid humps at -40 dBm */
+		val = CHSPEC_IS20(pi->radio_chanspec) ? 0x3108 : 0x2018;
+		FOREACH_CORE(pi, core)
+		    WRITE_PHYREGC(pi, Clip2Threshold, core, val);
 	}
 
 	if (ACMAJORREV_47(pi->pubpi->phy_rev) && !ACMINORREV_0(pi)) {
@@ -13319,6 +13372,10 @@ wlc_phy_rxcore_setstate_acphy(wlc_phy_t *pih, uint8 rxcore_bitmask, uint8 phytxc
 		MOD_PHYREG(pi, RxFeCtrl1, forceSdFeClkEn,
 			READ_PHYREGFLD(pi, NapCtrl, nap_en) ? pi->pubpi->phy_coremask : 0);
 	}
+	/* To enable TSSI clk to make it indepenant to rxcore setting */
+	if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
+		MOD_PHYREG(pi, RxFeCtrl1, forceSdFeClkEn, phytxchain);
+	}
 	wlapi_enable_mac(pi->sh->physhim);
 }
 
@@ -14021,21 +14078,9 @@ chanspec_tune_phy_ACMAJORREV_40(phy_info_t *pi)
 	phy_info_acphy_t *pi_ac = pi->u.pi_acphy;
 	PHY_TRACE(("wl%d: %s\n", pi->sh->unit, __FUNCTION__));
 
+	chanspec_tune_phy_dccal(pi, FALSE);
+
 	if (!SCAN_RM_IN_PROGRESS(pi)) {
-		/* setup DCC parameters */
-		if (CCT_INIT(pi_ac)) {
-			phy_ac_dccal_init(pi);
-			phy_ac_load_gmap_tbl(pi);
-		}
-
-		/* Load IDAC GMAP table */
-		if (CCT_BAND_CHG(pi_ac)) {
-			phy_ac_load_gmap_tbl(pi);
-		}
-
-		/* Cal DC cal in channel change */
-		phy_ac_dccal(pi);
-
 		if (CCT_INIT(pi_ac) || CCT_BW_CHG(pi_ac) || CCT_BAND_CHG(pi_ac)) {
 			wlc_phy_smth(pi, pi_ac->chanmgri->acphy_enable_smth,
 				pi_ac->chanmgri->acphy_smth_dump_mode);
@@ -14064,23 +14109,10 @@ chanspec_tune_phy_ACMAJORREV_44_46(phy_info_t *pi)
 	phy_info_acphy_t *pi_ac = pi->u.pi_acphy;
 	PHY_TRACE(("wl%d: %s\n", pi->sh->unit, __FUNCTION__));
 
+	if (!ISSIM_ENAB(pi->sh->sih))
+		chanspec_tune_phy_dccal(pi, FALSE);
+
 	if (!SCAN_RM_IN_PROGRESS(pi)) {
-		/* setup DCC parameters if not qt */
-		if (!ISSIM_ENAB(pi->sh->sih)) {
-			if (CCT_INIT(pi_ac)) {
-				phy_ac_dccal_init(pi);
-				phy_ac_load_gmap_tbl(pi);
-			}
-
-			/* Load IDAC GMAP table */
-			if (CCT_BAND_CHG(pi_ac)) {
-				phy_ac_load_gmap_tbl(pi);
-			}
-
-			/* Cal DC cal in channel change */
-			phy_ac_dccal(pi);
-		}
-
 		if (CCT_INIT(pi_ac) || CCT_BW_CHG(pi_ac) || CCT_BAND_CHG(pi_ac)) {
 			wlc_phy_smth(pi, pi_ac->chanmgri->acphy_enable_smth,
 				pi_ac->chanmgri->acphy_smth_dump_mode);
@@ -14143,38 +14175,7 @@ chanspec_tune_phy_ACMAJORREV_47_51(phy_info_t *pi)
 
 	PHY_TRACE(("wl%d: %s\n", pi->sh->unit, __FUNCTION__));
 
-	if (!SCAN_RM_IN_PROGRESS(pi)) {
-		/* setup DCC parameters */
-		if (CCT_INIT(pi_ac)) {
-			phy_ac_dccal_init(pi);
-			phy_ac_load_gmap_tbl(pi);
-		}
-
-		/* Load IDAC GMAP table */
-		if (CCT_BAND_CHG(pi_ac)) {
-			phy_ac_load_gmap_tbl(pi);
-		}
-
-		/* Bring chip in known good state before issuing dccal,
-		 as this function is called in the middle on chansepc_set
-		*/
-		wlc_phy_resetcca_acphy(pi);
-
-		/* Cal DC cal in channel change */
-		phy_ac_dccal(pi);
-	}
-
-	if (CCT_INIT(pi_ac)) {
-		/* Enable MRC SIG QUAL - not for A0 atleast */
-		//MOD_PHYREG(pi, MrcSigQualControl0, enableMrcSigQual, 0x1);
-
-		/* Initially switch LESI on, if globally enabled in pi_ac->rxgcrsi.
-		 * NOTE: phy_ac_rxgcrs_lesi() will only enable LESI if the global enable
-		 *       is on.
-		 * After the initial setting, enabling/disabling may be controlled by desense.
-		 */
-		phy_ac_rxgcrs_lesi(pi_ac->rxgcrsi, TRUE, 0);
-	}
+	chanspec_tune_phy_dccal(pi, FALSE);
 
 	if (CCT_INIT(pi_ac) || CCT_BW_CHG(pi_ac) || CCT_BAND_CHG(pi_ac)) {
 		wlc_phy_smth(pi, pi_ac->chanmgri->acphy_enable_smth,
@@ -14188,19 +14189,7 @@ chanspec_tune_phy_ACMAJORREV_36(phy_info_t *pi)
 {
 	phy_info_acphy_t *pi_ac = pi->u.pi_acphy;
 
-	/* setup DCC parameters */
-	if (CCT_INIT(pi_ac)) {
-		phy_ac_dccal_init(pi);
-		phy_ac_load_gmap_tbl(pi);
-	}
-
-	/* Load IDAC GMAP table */
-	if (CCT_BAND_CHG(pi_ac)) {
-		phy_ac_load_gmap_tbl(pi);
-	}
-
-	/* Cal DC cal in channel change */
-	phy_ac_dccal(pi);
+	chanspec_tune_phy_dccal(pi, TRUE);
 
 	/* Spur Canceller */
 	phy_ac_spurcan(pi_ac->rxspuri, TRUE);
@@ -14265,9 +14254,6 @@ chanspec_tune_phy_ACMAJORREV_32(phy_info_t *pi)
 	}
 
 	wlc_dcc_fsm_reset(pi);
-
-	// Enable LESI for 4365
-	phy_ac_rxgcrs_lesi(pi_ac->rxgcrsi, TRUE, 0);
 
 	if (ACMAJORREV_33(pi->pubpi->phy_rev)) {
 		if (PHY_AS_80P80(pi, pi->radio_chanspec)) {
@@ -14492,6 +14478,49 @@ chanspec_tune_phy_ACMAJORREV_0(phy_info_t *pi)
 	/* Update ucode settings based on current band/bw */
 	if (CCT_INIT(pi_ac) || CCT_BAND_CHG(pi_ac) || CCT_BW_CHG(pi_ac))
 		phy_ac_hirssi_set_ucode_params(pi);
+}
+
+static void
+phy_ac_chanmgr_dccal_force(phy_info_t *pi)
+{
+	uint8 mac_suspend;
+
+	if (!pi->sh->up) return;
+
+	if (!ACMAJORREV_47_51(pi->pubpi->phy_rev)) return;
+
+	mac_suspend = (R_REG(pi->sh->osh, D11_MACCONTROL(pi)) & MCTL_EN_MAC);
+	if (mac_suspend) wlapi_suspend_mac_and_wait(pi->sh->physhim);
+
+	chanspec_tune_phy_dccal(pi, TRUE);
+
+	if (mac_suspend) wlapi_enable_mac(pi->sh->physhim);
+}
+
+static void
+chanspec_tune_phy_dccal(phy_info_t *pi, bool force)
+{
+	phy_info_acphy_t *pi_ac = pi->u.pi_acphy;
+	PHY_TRACE(("wl%d: %s\n", pi->sh->unit, __FUNCTION__));
+
+	if (!SCAN_RM_IN_PROGRESS(pi) || force) {
+		/* setup DCC parameters */
+		if (CCT_INIT(pi_ac) || force) {
+			phy_ac_dccal_init(pi);
+			phy_ac_load_gmap_tbl(pi);
+		} else if (CCT_BAND_CHG(pi_ac)) {
+			/* Load IDAC GMAP table */
+			phy_ac_load_gmap_tbl(pi);
+		}
+
+		/* Bring chip in known good state before issuing dccal,
+		 as this function is called in the middle on chansepc_set
+		*/
+		wlc_phy_resetcca_acphy(pi);
+
+		/* Cal DC cal in channel change */
+		phy_ac_dccal(pi);
+	}
 }
 
 int
@@ -14840,6 +14869,13 @@ chanspec_setup_phy_ACMAJORREV_47_51(phy_info_t *pi)
 	phy_info_acphy_t *pi_ac = pi->u.pi_acphy;
 
 	if (CCT_INIT(pi_ac) || CCT_BW_CHG(pi_ac) || CCT_BAND_CHG(pi_ac)) {
+		/* Initially switch LESI on, if globally enabled in pi_ac->rxgcrsi.
+		 * NOTE: phy_ac_rxgcrs_lesi() will only enable LESI if the global enable
+		 *       is on.
+		 * After the initial setting, enabling/disabling may be controlled by desense.
+		 */
+		phy_ac_rxgcrs_lesi(pi_ac->rxgcrsi, TRUE, 0);
+
 		/* enable ChanSmooth */
 		wlc_phy_smth(pi, pi_ac->chanmgri->acphy_enable_smth,
 			pi_ac->chanmgri->acphy_smth_dump_mode);
@@ -14888,6 +14924,9 @@ chanspec_setup_phy_ACMAJORREV_32(phy_info_t *pi)
 	MOD_PHYREG(pi, TxPwrCtrlCmd, txpwrctrlReset, 1);
 	OSL_DELAY(10);
 	MOD_PHYREG(pi, TxPwrCtrlCmd, txpwrctrlReset, 0);
+
+	// Enable LESI for 4365
+	phy_ac_rxgcrs_lesi(pi_ac->rxgcrsi, TRUE, 0);
 }
 
 static void
@@ -16366,15 +16405,20 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 #endif /* WL_AIR_IQ */
 	uint16 classifier_state = 0;
 	uint8 orig_rxfectrl1 = 0;
+#ifndef ATE_BUILD
 	uint8 rx_coremask, tx_coremask;
-	uint8 bwbit = 2,  bwidx = 0;
+	uint8 bwbit = 2;
+#endif /* !ATE_BUILD */
+	uint8 bwidx = 0;
 	uint16 gpioout = 0;
 	uint16 gpio9_mask = 0x200;
 	uint16 gpio11_mask = 0x800;
 	acphy_swctrlmap4_t *swctrl = pi->u.pi_acphy->sromi->swctrlmap4;
-	static int orig_min_fm_lp = 0;
+	static int orig_min_fm_lp = 0, orig_st_level_time = 0, origSigFld1Decode = 0;
 	phy_radar_info_t *ri = pi->radari;
 	phy_radar_st_t *st = phy_radar_get_st(ri);
+	bool is43684mch2 = ACMAJORREV_47(pi->pubpi->phy_rev) && CHSPEC_IS2G(chanspec) &&
+		CHSPEC_IS5G(chanspec_sc) && !BF_ELNA_5G(pi->u.pi_acphy);
 
 	/* when upgrade from 3+1, phymode is set to 0 twice */
 	if (ACMAJORREV_47(pi->pubpi->phy_rev) &&
@@ -16438,6 +16482,7 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 				/* different band */
 				wlc_phy_radio20698_pu_rx_core(pi, 3, ch[1], 0);
 			}
+#ifndef ATE_BUILD
 			/* enable p1c */
 			bwbit = CHSPEC_BW_LE20(chanspec_sc)? 2 : CHSPEC_IS40(chanspec_sc)? 4 :
 				CHSPEC_IS80(chanspec_sc)? 6 : 8;
@@ -16448,8 +16493,11 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 			W_REG(pi->sh->osh, D11_PHYPLUS1CTL(pi), (0x01 + bwbit));
 			MOD_PHYREG(pi, dacClkCtrl, vasipClkEn, 1);
 			MOD_PHYREG(pi, dacClkCtrl, vasipAutoClkEn, 1);
+#endif /* !ATE_BUILD */
 			MOD_PHYREG(pi, TxResamplerEnable3, tx_stall_disable, 1);
+#ifndef ATE_BUILD
 			wlc_phy_rx_farrow_setup_28nm(pi, chanspec_sc, 1);
+#endif /* !ATE_BUILD */
 			bwidx = CHSPEC_BW_LE20(chanspec_sc)? 0 : CHSPEC_IS40(chanspec_sc)? 1 :
 				CHSPEC_IS80(chanspec_sc)? 2 : 3;
 			MOD_PHYREG(pi, RfctrlOverrideLpfCT3, lpf_bq1_bw, 1);
@@ -16481,16 +16529,37 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 				MOD_PHYREG(pi, FemOutputOvrCtrl3, femCtrlOutputOvr, 1);
 				MOD_PHYREG(pi, FemOutputOvrCtrl3, femCtrlOutput, 4);
 			}
-			/* small fm value on plc CH52 due to RB149974 5g lna1 gain change */
-			if (!ACMINORREV_0(pi) && (ch[1] == 52)) {
+			if (CHSPEC_IS5G(chanspec) && CHSPEC_IS5G(chanspec_sc) &&
+				!ACMINORREV_0(pi) && (ch[1] == 52)) {
+				// small fm on 5g+5g plc CH52 due to RB149974 5g lna1 gain change
 				orig_min_fm_lp = st->rparams.radar_args.min_fm_lp;
 				st->rparams.radar_args.min_fm_lp = 132;
+			} else if (is43684mch2) {
+				orig_min_fm_lp = st->rparams.radar_args.min_fm_lp;
+				orig_st_level_time = st->rparams.radar_args.st_level_time;
+				// FCC-5 small fm on plc bw20/bw40
+				// set pw thrsh to 610 to improve ETSI-4 detection on bw20/bw40
+				if (CHSPEC_IS20(chanspec_sc)) {
+					st->rparams.radar_args.min_fm_lp = 13;
+					st->rparams.radar_args.st_level_time = 0x8262;
+					st->chanset_elna_chk = (NC_CHAN_2GBW20 | NC_CHAN_2GBW40 |
+						SC_CHAN_5GBW20 | EXT_LNA_5G_OFF);
+				} else if (CHSPEC_IS40(chanspec_sc)) {
+					st->rparams.radar_args.min_fm_lp = 160;
+					st->rparams.radar_args.st_level_time = 0x8262;
+				}
+			}
+			if (CHSPEC_IS80(chanspec) && (ch[0] <= WL_THRESHOLD_LO_BAND)) {
+				origSigFld1Decode = READ_PHYREGFLD(pi, RadarBlankCtrl2,
+					radarSigDecode1BlankEn);
+				MOD_PHYREG(pi, RadarBlankCtrl2, radarSigDecode1BlankEn, 0);
 			}
 		} else {
 			PHY_ERROR(("wl%d: %s: Unsupported PHY revision for BGDFS\n",
 			         pi->sh->unit, __FUNCTION__));
 			break;
 		}
+#ifndef ATE_BUILD
 		MOD_PHYREG(pi, RfseqMode, CoreActv_override_percore, 8);
 		/* Enable RX on core-3, disable Tx */
 		rx_coremask = 0x8 | phy_stf_get_data(pi->stfi)->phyrxchain;
@@ -16560,6 +16629,7 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 		(uint16)((int16)st->rparams.radar_args.thresh0_sc));
 		phy_utils_write_phyreg(pi, ACPHY_RadarThresh1_SC(pi->pubpi->phy_rev),
 		(uint16)((int16)st->rparams.radar_args.thresh1_sc));
+#endif /* !ATE_BUILD */
 		break;
 	case 0:
 		if (ACMAJORREV_32(pi->pubpi->phy_rev) ||
@@ -16607,6 +16677,7 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 				MOD_RADIO_REG_20698(pi, RX5G_REG5, 3, rx5g_mix_Cin_tune, 0);
 				wlc_phy_radio20698_pu_rx_core(pi, 3, ch[0], 1);
 			}
+#ifndef ATE_BUILD
 			/* reset p1c phyreg first before turn it off */
 			MOD_PHYREG_p1c(pi, RadarSearchCtrl, radarEnable, 0);
 			/* disable p1c */
@@ -16615,8 +16686,11 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 			W_REG(pi->sh->osh, D11_PHYPLUS1CTL(pi), (0x11 + bwbit));
 			W_REG(pi->sh->osh, D11_PHYPLUS1CTL(pi), (0x10 + bwbit));
 			W_REG(pi->sh->osh, D11_PHYPLUS1CTL(pi), 0x02);
+#endif /* !ATE_BUILD */
 			MOD_PHYREG(pi, TxResamplerEnable3, tx_stall_disable, 0);
+#ifndef ATE_BUILD
 			wlc_phy_rx_farrow_setup_28nm(pi, chanspec_sc, 0);
+#endif /* !ATE_BUILD */
 			MOD_PHYREG(pi, RfctrlOverrideLpfCT3, lpf_bq1_bw, 0);
 			MOD_PHYREG(pi, RfctrlOverrideLpfCT3, lpf_bq2_bw, 0);
 			wlc_phy_radio20698_afe_div_ratio(pi, 0, 0, 0);
@@ -16641,14 +16715,34 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 				MOD_PHYREG(pi, FemOutputOvrCtrl3, femCtrlOutput, 0);
 				MOD_PHYREG(pi, FemOutputOvrCtrl3, femCtrlOutputOvr, 0);
 			}
-			/* restore min_fm_lp when phymode 0 */
-			if (!ACMINORREV_0(pi) && (ch[1] == 52) && (orig_min_fm_lp != 0)) {
+			/* restore min_fm_lp/st_level_time/chanset_elna_chk when phymode 0 */
+			if (CHSPEC_IS5G(chanspec) && CHSPEC_IS5G(chanspec_sc) &&
+				!ACMINORREV_0(pi) && (ch[1] == 52) && (orig_min_fm_lp != 0)) {
 				st->rparams.radar_args.min_fm_lp = orig_min_fm_lp;
+			} else if (is43684mch2 && (CHSPEC_IS20(chanspec_sc) ||
+				CHSPEC_IS40(chanspec_sc))) {
+				if (orig_min_fm_lp != 0)
+					st->rparams.radar_args.min_fm_lp = orig_min_fm_lp;
+				if (orig_st_level_time != 0)
+					st->rparams.radar_args.st_level_time = orig_st_level_time;
+				if (CHSPEC_IS20(chanspec_sc))
+					st->chanset_elna_chk = 0;
+			}
+			if (CHSPEC_IS80(chanspec) && (ch[0] <= WL_THRESHOLD_LO_BAND) &&
+				(origSigFld1Decode != 0)) {
+				MOD_PHYREG(pi, RadarBlankCtrl2, radarSigDecode1BlankEn,
+					origSigFld1Decode);
 			}
 		} else {
 			PHY_ERROR(("wl%d: %s: Unsupported PHY revision for BGDFS\n",
 			         pi->sh->unit, __FUNCTION__));
 			break;
+		}
+#ifndef ATE_BUILD
+		if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
+			MOD_PHYREG(pi, TxPwrCtrlCmd, txPwrCtrl_en, 0);
+			wlc_phy_txpwrctrl_enable_acphy(pi, PHY_TPC_HW_OFF);
+			wlc_phy_txpwr_by_index_acphy(pi, (1 << 3), 64);
 		}
 		MOD_PHYREG(pi, RfseqMode, CoreActv_override_percore, 0);
 		/* Enable RX and TX on core-3 */
@@ -16660,6 +16754,10 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 		MOD_PHYREG(pi, CoreConfig, CoreMask, tx_coremask);
 		MOD_PHYREG(pi, CoreConfig, pasvRxSampCapOn, 0);
 		MOD_PHYREG(pi, CoreConfig, pasvRxCoreMask, 0);
+		if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
+			wlc_phy_txpwrctrl_enable_acphy(pi, PHY_TPC_HW_ON);
+		}
+#endif /* !ATE_BUILD */
 		break;
 	default:
 		PHY_ERROR(("wl%d: %s: Unsupported radio revision %d\n",
@@ -16700,6 +16798,7 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 				MOD_PHYREG(pi, RadarDetectConfig3_SC, gain_override_en, 1);
 				MOD_PHYREG(pi, RadarBlankCtrl2_SC, blank_mode, 1);
 			} else if (ACMAJORREV_47(pi->pubpi->phy_rev)) {
+#ifndef ATE_BUILD
 				MOD_PHYREG(pi, AntDivConfig2059, Trigger_override_per_core, 8);
 				/* disable_stalls=0 for real chip and 1 for self_test */
 				MOD_PHYREG_p1c(pi, RxFeCtrl1, disable_stalls, 0);
@@ -16716,8 +16815,13 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 				MOD_PHYREG_p1c(pi, CoreConfig, pasvRxCoreMask, 1);
 				MOD_PHYREG_p1c(pi, AntDivConfig2059, Trigger_override_per_core, 1);
 				MOD_PHYREG_p1c(pi, RadarDetectConfig3, gain_override_en, 1);
-				/* set gain_override_val to 0x3d to fix A1 p1c detection */
-				MOD_PHYREG_p1c(pi, RadarGainOverride, gain_override_val, 0x3d);
+				if (is43684mch2) {
+					MOD_PHYREG_p1c(pi, RadarGainOverride,
+						gain_override_val, 0x30);
+				} else { /* set gain_override_val to 0x3d to fix A1 p1c detection */
+					MOD_PHYREG_p1c(pi, RadarGainOverride,
+						gain_override_val, 0x3d);
+				}
 				MOD_PHYREG_p1c(pi, RadarDetectConfig3, scan_mode, 1);
 				MOD_PHYREG_p1c(pi, RadarSearchCtrl, radarEnable, 1);
 				phy_utils_write_phyreg_p1c(pi,
@@ -16753,17 +16857,20 @@ phy_ac_chanmgr_set_phymode(phy_info_t *pi, chanspec_t chanspec, chanspec_t chans
 					CHSPEC_IS20(chanspec_sc) ?
 					0xa : CHSPEC_IS40(chanspec_sc) ? 0x5 :
 					CHSPEC_IS80(chanspec_sc) ? 0x2 : 0x1);
+#endif /* !ATE_BUILD */
 			} else {
 				PHY_ERROR(("wl%d: %s: Unsupported PHY revision for BGDFS\n",
 					pi->sh->unit, __FUNCTION__));
 			}
 			break;
 		case 0:
+#ifndef ATE_BUILD
 			MOD_PHYREG(pi, AntDivConfig2059, Trigger_override_per_core, 0);
 			MOD_PHYREG(pi, RadarSearchCtrl_SC, radarEnable, 0);
 			MOD_PHYREG(pi, RadarDetectConfig3_SC, scan_mode, 0);
 			MOD_PHYREG(pi, RadarDetectConfig3_SC, gain_override_en, 0);
 			MOD_PHYREG(pi, RadarBlankCtrl2_SC, blank_mode, 0);
+#endif /* !ATE_BUILD */
 			break;
 		default:
 			PHY_ERROR(("wl%d: %s: Unsupported radio revision %d\n",
@@ -17953,40 +18060,109 @@ phy_ac_chanmgr_enable_mac_aided(phy_info_t *pi, bool set, uint16 val)
 static void wlc_phy_ul_mac_aided_timing(phy_info_t *pi)
 {
 	/* set the timing forcing registers for mac-aided mode */
-	/* Note: All register settings are based on current IFS (~12us).
+	/* Note: Add IFS of 16 us tuned with 4375.
+	 * 43684 register settings are based on current IFS (~12us).
 	 * Need to redo the tunning after the IFS is fixed.
 	 */
+
 	if ((ACMAJORREV_47(pi->pubpi->phy_rev) && !ACMINORREV_0(pi)) ||
 			ACMAJORREV_51(pi->pubpi->phy_rev)) {
 		MOD_PHYREG(pi, Config0_MAC_aided_trig_frame, en_mac_aided_crs,
-				pi->u.pi_acphy->ul_mac_aided_timing_en);
+				pi->u.pi_acphy->ul_mac_aided_en);
 		MOD_PHYREG(pi, Config0_MAC_aided_trig_frame, en_mac_aided_cstr,
-				pi->u.pi_acphy->ul_mac_aided_timing_en);
+				pi->u.pi_acphy->ul_mac_aided_en);
 		MOD_PHYREG(pi, Config0_MAC_aided_trig_frame, en_mac_aided_fstr,
-				pi->u.pi_acphy->ul_mac_aided_timing_en);
-		MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 0xc8);
-		MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 0x208);
-		switch (pi->bw) {
-		case WL_CHANSPEC_BW_20:
-			MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 520);
-			MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 680);
-			break;
-		case WL_CHANSPEC_BW_40:
-			MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 440);
-			MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 680);
-			break;
-		case WL_CHANSPEC_BW_80:
-			MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 360);
-			MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 690);
-			break;
-		case WL_CHANSPEC_BW_160:
-			MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 400);
-			MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 670);
-			break;
-		default:
-			PHY_ERROR(("%s: Unknow BW=%d\n",
-			__FUNCTION__, pi->bw));
-			ASSERT(0);
+				pi->u.pi_acphy->ul_mac_aided_en);
+
+		if (pi->u.pi_acphy->ul_mac_aided_timing_en == 1) {
+			switch (pi->bw) {
+	                // 4375 STA IFS 16 us
+			case WL_CHANSPEC_BW_20:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 1030);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1750);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 2230);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 920);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 1150);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1310);
+			    break;
+			case WL_CHANSPEC_BW_40:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 990);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1710);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 2190);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 880);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 1110);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1270);
+			    break;
+			case WL_CHANSPEC_BW_80:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 970);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1690);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 2170);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 860);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 1090);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1250);
+			    break;
+			case WL_CHANSPEC_BW_160:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 970);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1690);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 2170);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 860);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 1090);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1250);
+			    break;
+			default:
+			    PHY_ERROR(("%s: Unknow BW=%d\n",
+			    __FUNCTION__, pi->bw));
+			    ASSERT(0);
+			}
+		}
+		if (pi->u.pi_acphy->ul_mac_aided_timing_en == 2) {
+			switch (pi->bw) {
+	                // 43684 STA IFS ~12 us
+			case WL_CHANSPEC_BW_20:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 900);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1620);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 2100);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 790);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 1020);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1180);
+			    break;
+			case WL_CHANSPEC_BW_40:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 820);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1540);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 2020);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 710);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 940);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1100);
+			    break;
+			case WL_CHANSPEC_BW_80:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 740);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1460);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 1940);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 630);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 860);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1030);
+			    break;
+			case WL_CHANSPEC_BW_160:
+			    MOD_PHYREG(pi, Config2_MAC_ided_trig_frame, wait_deaf_time, 20);
+			    MOD_PHYREG(pi, Config3_MAC_aided_trig_frame, wait_ofdm_time, 780);
+			    MOD_PHYREG(pi, Config4_MAC_aided_trig_frame, wait_he_time, 1500);
+			    MOD_PHYREG(pi, Config5_MAC_aided_trig_frame, wait_trig_time, 1980);
+			    MOD_PHYREG(pi, Config6_MAC_aided_trig_frame, mac_aided_crs_time, 670);
+			    MOD_PHYREG(pi, Config7_MAC_aided_trig_frame, mac_aided_cstr_time, 900);
+			    MOD_PHYREG(pi, Config8_MAC_aided_trig_frame, mac_aided_fstr_time, 1050);
+			    break;
+			default:
+			    PHY_ERROR(("%s: Unknow BW=%d\n",
+			    __FUNCTION__, pi->bw));
+			    ASSERT(0);
+			}
 		}
 	}
 }
@@ -17995,10 +18171,16 @@ int
 phy_ac_chanmgr_enable_mac_aided_timing(phy_info_t *pi, bool set, uint16 val)
 {
 	int ret = 0;
-
+	/* wl ul_mac_aided_timing 1  (IFS ~16 us)
+	   wl ul_mac_aided_timing 2  (IFS ~12 us for 43684)
+	 */
 	if (set) {
 		/* enable/disable mac-aided mode with timing forcing */
-		pi->u.pi_acphy->ul_mac_aided_en = val;
+		if (val > 0) {
+			pi->u.pi_acphy->ul_mac_aided_en = 1;
+		} else {
+			pi->u.pi_acphy->ul_mac_aided_en = 0;
+		}
 		wlc_phy_ul_mac_aided(pi);
 		pi->u.pi_acphy->ul_mac_aided_timing_en = val;
 		wlc_phy_ul_mac_aided_timing(pi);

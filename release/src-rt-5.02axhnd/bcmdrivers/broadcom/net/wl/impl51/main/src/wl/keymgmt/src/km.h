@@ -44,7 +44,7 @@
  *
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
- * $Id: km.h 761291 2018-05-07 14:08:10Z $
+ * $Id: km.h 767108 2018-08-28 12:23:52Z $
  */
 
 #ifndef _km_h_
@@ -244,6 +244,8 @@ bool km_is_replay(wlc_keymgmt_t *km, wlc_key_info_t *key_info, int ins,
 /* update ivtw */
 void km_update_ivtw(wlc_keymgmt_t *km, wlc_key_info_t *key_info, int ins,
 	uint8 *rx_seq, size_t seq_len, bool chained);
+
+extern void km_null_key_deauth(wlc_keymgmt_t *km, scb_t *scb, void *pkt);
 
 #ifdef BRCMAPIVTW
 #define KM_UPDATE_IVTW(_km, _ki, _ins, _seq, _seq_len, _chained) km_update_ivtw(\

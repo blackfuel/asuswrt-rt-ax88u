@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_tssical.h 739019 2018-01-04 20:00:32Z $
+ * $Id: phy_tssical.h 766697 2018-08-10 00:10:49Z $
  */
 
 #ifndef _phy_tssical_h_
@@ -152,10 +152,11 @@ int phy_tssical_apply_pwr_tssi_tbl(phy_tssical_info_t *tssicali,
 void phy_tssical_set_olpc_idx_in_use(phy_tssical_info_t *tssicali, uint8 val);
 void phy_tssical_set_olpc_threshold(phy_tssical_info_t *tssicali);
 #endif /* WLC_TXCAL */
-
-#ifdef WL_EAP_OLPC
 int8 phy_tssical_get_olpc_threshold2g(phy_tssical_info_t *tssicali);
 int8 phy_tssical_get_olpc_threshold5g(phy_tssical_info_t *tssicali);
-#endif /* WL_EAP_OLPC */
+#if defined(WLTEST)
+void phy_tssical_set_olpc_threshold2g(phy_tssical_info_t *tssicali, int8 val);
+void phy_tssical_set_olpc_threshold5g(phy_tssical_info_t *tssicali, int8 val);
+#endif // endif
 
 #endif /* _phy_tssical_h_ */

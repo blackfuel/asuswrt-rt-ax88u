@@ -168,7 +168,7 @@ acs_bgdfs_set(acs_chaninfo_t * c_info, int arg)
 		(int)(htod32(arg)));
 	if (arg > 0 && c_info->acs_bgdfs != NULL) {
 		c_info->acs_bgdfs->last_attempted = arg;
-		c_info->acs_bgdfs->last_attempted_at = (uint64) time(NULL);
+		c_info->acs_bgdfs->last_attempted_at = (uint64) uptime();
 	}
 	if (ret != BCME_OK) {
 		ACSD_ERROR("set dfs_ap_move %d returned %d.\n", arg, ret);

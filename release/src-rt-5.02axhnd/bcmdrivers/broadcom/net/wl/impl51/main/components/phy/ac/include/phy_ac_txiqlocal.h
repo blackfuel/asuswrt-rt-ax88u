@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_txiqlocal.h 719751 2017-09-06 13:34:30Z $
+ * $Id: phy_ac_txiqlocal.h 767415 2018-09-11 00:27:51Z $
  */
 
 #ifndef _phy_ac_txiqlocal_h_
@@ -108,6 +108,7 @@ extern void wlc_phy_txcal_phy_setup_acphy_core_sd_adc(phy_info_t *pi, uint8 core
 extern void wlc_phy_poll_samps_acphy(phy_info_t *pi, int16 *samp, bool is_tssi,
 	uint8 log2_nsamps, bool init_adc_inside,
 	uint16 core);
+extern void wlc_phy_populate_tx_loftcoefluts_acphy(phy_info_t *pi, uint8 start_idx, uint8 stop_idx);
 #ifdef WLC_TXFDIQ
 extern void wlc_phy_tx_fdiqi_comp_acphy(phy_info_t *pi, bool enable, int fdiq_data_valid);
 #endif // endif

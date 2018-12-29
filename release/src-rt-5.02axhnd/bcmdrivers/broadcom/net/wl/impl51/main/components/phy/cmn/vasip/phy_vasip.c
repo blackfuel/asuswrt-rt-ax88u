@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_vasip.c 748133 2018-02-21 19:19:22Z $
+ * $Id: phy_vasip.c 766999 2018-08-24 01:14:37Z $
  */
 
 #include <phy_cfg.h>
@@ -63,6 +63,7 @@
 /* forward declaration */
 #if defined(BCMDBG)
 static int phy_dump_bfd_status(void *ctx, struct bcmstrbuf *b);
+static int phy_dump_svmp(void *ctx, struct bcmstrbuf *b);
 #endif // endif
 
 /* attach/detach */
@@ -90,6 +91,7 @@ BCMATTACHFN(phy_vasip_attach)(phy_info_t *pi)
 
 #if defined(BCMDBG)
 	phy_dbg_add_dump_fn(pi, "bfdstatus", phy_dump_bfd_status, cmn_info);
+	phy_dbg_add_dump_fn(pi, "physvmp", phy_dump_svmp, cmn_info);
 #endif // endif
 
 	return cmn_info;
@@ -248,8 +250,29 @@ phy_dump_bfd_status(void *ctx, struct bcmstrbuf *b)
 	phy_info_t *pi = cmn_info->pi;
 	phy_type_vasip_fns_t *fns = pi->vasipi->fns;
 
+	if (!pi->sh->clk) {
+		return BCME_NOCLK;
+	}
+
 	if (fns->dump_bfd_status != NULL) {
 		fns->dump_bfd_status(fns->ctx, b);
+	}
+	return BCME_OK;
+}
+
+static int
+phy_dump_svmp(void *ctx, struct bcmstrbuf *b)
+{
+	phy_vasip_info_t *cmn_info = (phy_vasip_info_t *) ctx;
+	phy_info_t *pi = cmn_info->pi;
+	phy_type_vasip_fns_t *fns = pi->vasipi->fns;
+
+	if (!pi->sh->clk) {
+		return BCME_NOCLK;
+	}
+
+	if (fns->dump_svmp != NULL) {
+		fns->dump_svmp(fns->ctx, b);
 	}
 	return BCME_OK;
 }

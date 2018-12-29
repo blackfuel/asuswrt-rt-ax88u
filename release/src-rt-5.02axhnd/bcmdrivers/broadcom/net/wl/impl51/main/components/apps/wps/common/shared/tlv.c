@@ -263,6 +263,12 @@ tlv_dserialize_imp(void *v, uint16 theType, BufferObj *theBuf, uint16 dataSize, 
 	if (!remaining)
 		return -1;
 
+	if (WpsNtohs(buffobj_Pos(theBuf)) == 0x106B) {
+		buffobj_Advance(theBuf, 2 * sizeof(uint16) + 16);
+		if (theType == 0x106B)
+			return 0;
+	}
+
 	b->m_pos = buffobj_Pos(theBuf);
 
 	p_data = b->m_pos;

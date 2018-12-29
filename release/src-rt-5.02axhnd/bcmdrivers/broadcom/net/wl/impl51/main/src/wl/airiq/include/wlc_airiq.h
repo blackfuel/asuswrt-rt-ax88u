@@ -113,7 +113,7 @@
 #define SVMP_SMPL_CHANSPEC_3X3_ADDR  (6 + SVMP_HEADER_EXT_ADDR)
 
 /* End of offsets into SVMP */
-/* Offsets into SVMP for AX chip*/
+/* Offsets into SVMP for AX chip */
 #define SVMP_AX_FFT_DATA_ADDR 0x45020
 
 #define SVMP_AX_STATUS_ADDR        0x45018
@@ -316,7 +316,7 @@ struct airiq_info {
 	int32 start_time_mac;
 	int32 vasip_time_correction;
 	bool latch_vasip_start_time;
-	/*vasip addresses*/
+	/* vasip addresses */
 	uint32 svmp_fft_data_addr;
 	uint32 svmp_status_addr;
 	uint32 svmp_smpl_ctrl_addr;

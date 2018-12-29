@@ -50,7 +50,7 @@
  * <<Broadcom-WL-IPTag/Proprietary:>>
  * All Rights Reserved.
  *
- * $Id: wlc_phytbl_ac.c 743257 2018-01-25 11:31:27Z $
+ * $Id: wlc_phytbl_ac.c 767517 2018-09-13 22:37:21Z $
  */
 /* FILE-CSTYLED */
 
@@ -33506,7 +33506,7 @@ CONST uint32 acphy_phasetrack_tbl_rev47[] = {
 	0x00013e03,
 	0x00013a03,
 	0x00013602,
-	0x0003ffff,
+	0x00008040,
 	0x00004008,
 	0x0000ca0c,
 	0x0001380d,
@@ -33522,7 +33522,7 @@ CONST uint32 acphy_phasetrack_tbl_rev47[] = {
 	0x0000bc02,
 	0x0000aa01,
 	0x00009c01,
-	0x0003ffff,
+	0x00008040,
 	0x0000b415,
 	0x0001a019,
 	0x0001e814,
@@ -33538,7 +33538,7 @@ CONST uint32 acphy_phasetrack_tbl_rev47[] = {
 	0x0000ca02,
 	0x0000b801,
 	0x0000aa01,
-	0x0003ffff,
+	0x00008040,
 	0x00019e31,
 	0x00027226,
 	0x00025419,
@@ -33659,7 +33659,7 @@ CONST uint32 acphy_phasetrack_tbl_b_rev47[] = {
 	0x00013e03,
 	0x00013a03,
 	0x00013602,
-	0x0003ffff,
+	0x00008040,
 	0x00004008,
 	0x0000ca0c,
 	0x0001380d,
@@ -33675,7 +33675,7 @@ CONST uint32 acphy_phasetrack_tbl_b_rev47[] = {
 	0x0000bc02,
 	0x0000aa01,
 	0x00009c01,
-	0x0003ffff,
+	0x00008040,
 	0x0000b415,
 	0x0001a019,
 	0x0001e814,
@@ -33691,7 +33691,7 @@ CONST uint32 acphy_phasetrack_tbl_b_rev47[] = {
 	0x0000ca02,
 	0x0000b801,
 	0x0000aa01,
-	0x0003ffff,
+	0x00008040,
 	0x00019e31,
 	0x00027226,
 	0x00025419,

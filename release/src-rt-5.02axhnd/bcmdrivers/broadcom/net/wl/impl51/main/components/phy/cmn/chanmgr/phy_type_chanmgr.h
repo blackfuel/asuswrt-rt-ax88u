@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_type_chanmgr.h 766664 2018-08-09 08:50:20Z $
+ * $Id: phy_type_chanmgr.h 767248 2018-08-31 20:55:03Z $
  */
 
 #ifndef _phy_type_chanmgr_h_
@@ -76,6 +76,7 @@ typedef uint8 (*phy_type_set_chanspec_sr_vsdb_fn_t) (phy_type_chanmgr_ctx_t *ctx
 typedef void (*phy_type_chanmgr_preempt_fn_t)(phy_type_chanmgr_ctx_t *ctx, bool enable_preempt,
     bool EnablePostRxFilter_Proc);
 typedef void (*phy_type_chanmgr_tdcs_enable_160m_fn_t)(phy_info_t *pi, bool set_val);
+typedef void (*phy_type_chanmgr_dccal_t)(phy_info_t *pi);
 typedef int (*phy_type_chanmgr_get_fn_t)(phy_type_chanmgr_ctx_t *ctx, int32 *ret_int_ptr);
 typedef int (*phy_type_chanmgr_set_fn_t)(phy_type_chanmgr_ctx_t *ctx, int8 int_val);
 typedef int (*phy_type_chanmgr_dump_fn_t)(phy_type_chanmgr_ctx_t *ctx, struct bcmstrbuf *b);
@@ -106,6 +107,8 @@ typedef struct {
 	phy_type_chanmgr_preempt_fn_t preempt;
 	/* set TDCS for 160M */
 	phy_type_chanmgr_tdcs_enable_160m_fn_t tdcs_enable_160m;
+	/* force dc cal */
+	phy_type_chanmgr_dccal_t dccal_force;
 	/* set stf chain */
 	phy_type_chanmgr_get_fn_t get_smth;
 	/* set smth */

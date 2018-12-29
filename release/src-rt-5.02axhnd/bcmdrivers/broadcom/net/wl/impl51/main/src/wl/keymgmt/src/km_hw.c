@@ -43,7 +43,7 @@
  *
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
- * $Id: km_hw.c 733060 2017-11-23 16:33:34Z $
+ * $Id: km_hw.c 767425 2018-09-11 07:50:50Z $
  */
 
 /* This file implements the wlc keymgmt functionality. It provides
@@ -274,6 +274,9 @@ km_hw_reset(km_hw_t *hw)
 	if (KM_HW_COREREV_GE40(hw)) {
 		km_hw_amt_reserve(hw, AMT_IDX_MAC, 1, TRUE);
 		km_hw_amt_reserve(hw, AMT_IDX_BSSID, 1, TRUE);
+		if (RATELINKMEM_ENAB(hw->wlc->pub)) {
+			km_hw_amt_reserve(hw, AMT_IDX_RSVD_START, AMT_IDX_RSVD_SIZE, TRUE);
+		}
 #ifdef WL_RELMCAST
 		if (RMC_SUPPORT(KM_HW_PUB(hw)) && RMC_ENAB(KM_HW_PUB(hw)))
 			km_hw_amt_reserve(hw, AMT_IDX_MCAST_ADDR, 1, TRUE);

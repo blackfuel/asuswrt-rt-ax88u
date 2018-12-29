@@ -734,6 +734,11 @@ void    hwa_rxpath_stats_dump(hwa_rxpath_t *rxpath, struct bcmstrbuf *b, uint8 c
 // Determine if any Rx path block HWA1a or HWA1b has an error
 int     hwa_rxpath_error(hwa_dev_t *dev, uint32 core); // return 0 = no error
 
+#if defined(BCMPCIE_IPC_HPA)
+// A HWA wrap function to Test a PktId on entry and exit from dongle
+void    hwa_rxpath_hpa_req_test(hwa_dev_t *dev, uint32 pktid);
+#endif // endif
+
 #if defined(BCMDBG)
 // Debug support for HWA1x blocks 1a + 1b
 void    hwa_rxpath_dump(hwa_rxpath_t *rxpath, struct bcmstrbuf *b, bool verbose, bool dump_regs);
@@ -763,7 +768,8 @@ typedef enum hwa_rxdata_fhr_filter_type
 	HWA_RXDATA_FHR_FILTER_DISABLED = 0,
 	HWA_RXDATA_FHR_PKTFETCH = 1,              // Full Dongle host packet fetch
 	HWA_RXDATA_FHR_L2FILTER = 2,              // L2Filter packet drop
-	HWA_RXDATA_FHR_FILTER_TYPE_MAX = 3
+	HWA_RXDATA_FHR_LLC_SNAP_DA = 3,
+	HWA_RXDATA_FHR_FILTER_TYPE_MAX = 4
 } hwa_rxdata_fhr_filter_type_t;
 
 typedef struct hwa_rxdata_fhr_filter hwa_rxdata_fhr_filter_t;
@@ -780,6 +786,7 @@ typedef struct hwa_rxdata
 
 	uint32                     fhr_pktfetch;  // enabled pktfetch filter bitmap
 	uint32                     fhr_l2filter;  // enabled l2filter filter bitmap
+	uint32                     llc_snap_da_filter;  // enabled l2filter filter bitmap
 
 	uint32                     rxfilteren;    // Enabled filters in HWA2a
 
@@ -1231,6 +1238,9 @@ hwa_txstat_t *BCMATTACHFN(hwa_txstat_attach)(hwa_dev_t *dev);
 void    hwa_txstat_init(hwa_txstat_t *txstat);
 void    hwa_txstat_deinit(hwa_txstat_t *txstat);
 void    hwa_txstat_wait_to_finish(hwa_txstat_t *txstat, uint32 core);
+
+// Consume all txstatus in H2S txstatus interface
+int     hwa_txstat_process(struct hwa_dev *dev, uint32 core, bool bound);
 
 // HWA4a TxStat  block level statistics per core
 void    hwa_txstat_stats_clear(hwa_txstat_t *txstat, uint32 core);

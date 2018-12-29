@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_vasip.h 748133 2018-02-21 19:19:22Z $
+ * $Id: phy_vasip.h 766999 2018-08-24 01:14:37Z $
  */
 
 #ifndef _phy_vasip_h_
@@ -76,6 +76,8 @@ typedef void (*phy_type_vasip_read_svmp_blk_t)(phy_type_vasip_ctx_t *ctx,
 #if defined(BCMDBG)
 typedef void (*phy_type_vasip_dump_bfd_status_t)(phy_type_vasip_ctx_t *ctx,
 		struct bcmstrbuf *b);
+typedef void (*phy_type_vasip_dump_svmp_t)(phy_type_vasip_ctx_t *ctx,
+		struct bcmstrbuf *b);
 #endif // endif
 typedef struct phy_vasip_info phy_vasip_info_t;
 typedef struct phy_vasip_mem phy_vasip_mem_t;
@@ -94,6 +96,7 @@ typedef struct {
 	phy_type_vasip_read_svmp_blk_t	read_svmp_blk;
 #if defined(BCMDBG)
 	phy_type_vasip_dump_bfd_status_t dump_bfd_status;
+	phy_type_vasip_dump_svmp_t dump_svmp;
 #endif // endif
 } phy_type_vasip_fns_t;
 

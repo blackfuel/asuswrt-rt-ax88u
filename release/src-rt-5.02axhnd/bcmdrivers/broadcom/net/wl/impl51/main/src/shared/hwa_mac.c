@@ -1201,6 +1201,9 @@ hwa_rxfill_bmac_recv(void *context, uintptr arg1, uintptr arg2, uint32 core, uin
 
 	// Set host_pktid
 	PKTSETFRAGPKTID(dev->osh, frag, rph_req->hostinfo64.host_pktid);
+#if defined(BCMPCIE_IPC_HPA)
+	hwa_rxpath_hpa_req_test(dev, rph_req->hostinfo64.host_pktid);
+#endif // endif
 
 	// Start from RxStatus
 	PKTSETBUF(dev->osh, frag, rxbuffer + rxfill->config.wrxh_offset, rxfill->config.rx_size);
@@ -1358,7 +1361,7 @@ hwa_rxfill_bmac_done(void *context, uintptr arg1, uintptr arg2, uint32 core, uin
 
 void // Invoked by MAC to configure the HWA Common block registers
 hwa_mac_config(hwa_mac_config_t config,
-	uint32 core, volatile void *ptr, uintptr val)
+	uint32 core, volatile void *ptr, uint32 val)
 {
 	uint32 v32;
 	hwa_dev_t *dev;
@@ -1568,7 +1571,9 @@ hwa_rxdata_init(hwa_rxdata_t *rxdata)
 
 	v32 =
 		BCM_SBIT(_RXHWACTRL_GLOBALFILTEREN) |
+#if HWA_REVISION_GE_131 || defined(WAR_HWA2A_SW_MONITOR)
 		BCM_SBIT(_RXHWACTRL_PKTCOMPEN) |
+#endif // endif
 		BCM_SBIT(_RXHWACTRL_CLRALLFILTERSTAT);
 	HWA_WR_REG_ADDR(HWA2a, &dev->mac_regs->rxhwactrl, v32);
 
@@ -1657,6 +1662,22 @@ hwa_rxdata_fhr_filter_init_pktfetch(hwa_rxdata_t *rxdata)
 		bitmask = 0x1;
 		pattern = 0x1;	/* Check for 0x1 */
 		hwa_rxdata_fhr_param_add(fid, 0, offset, (uint8 *)&bitmask, (uint8 *)&pattern, 1);
+		hwa_rxdata_fhr_filter_add(fid);
+	}
+
+	/* Packet filter to catch invalid AMSDU transmission from 4360 sta side */
+	fid = hwa_rxdata_fhr_filter_new(HWA_RXDATA_FHR_LLC_SNAP_DA, 0, 2);
+	if (fid != HWA_FAILURE) {
+		offset = HW_HDR_CONV_PAD;
+		bitmask = 0xffffffff;
+		pattern = HTON32(0xAAAA0300);
+		hwa_rxdata_fhr_param_add(fid, 0, offset, (uint8 *)&bitmask, (uint8 *)&pattern, 4);
+
+		offset = HW_HDR_CONV_PAD + 4;
+		bitmask = 0xffff;
+		pattern = HTON16(0x0000);
+		hwa_rxdata_fhr_param_add(fid, 0, offset, (uint8 *)&bitmask, (uint8 *)&pattern, 2);
+
 		hwa_rxdata_fhr_filter_add(fid);
 	}
 #ifdef WLTDLS
@@ -2008,6 +2029,8 @@ hwa_rxdata_fhr_filter_add(uint32 filter_id)
 			setbit(&rxdata->fhr_pktfetch, filter_id); break;
 		case HWA_RXDATA_FHR_L2FILTER:
 			setbit(&rxdata->fhr_l2filter, filter_id); break;
+		case HWA_RXDATA_FHR_LLC_SNAP_DA:
+			setbit(&rxdata->llc_snap_da_filter, filter_id); break;
 		default: HWA_ASSERT(0); break;
 	}
 
@@ -2074,6 +2097,8 @@ hwa_rxdata_fhr_filter_del(uint32 filter_id)
 			clrbit(&rxdata->fhr_pktfetch, filter_id); break;
 		case HWA_RXDATA_FHR_L2FILTER:
 			clrbit(&rxdata->fhr_l2filter, filter_id); break;
+		case HWA_RXDATA_FHR_LLC_SNAP_DA:
+			clrbit(&rxdata->llc_snap_da_filter, filter_id); break;
 		default: HWA_ASSERT(0); break;
 	}
 
@@ -2152,6 +2177,25 @@ hwa_rxdata_fhr_is_l2filter(uint32 fhr_filter_match)
 	return (rxdata->fhr_l2filter & fhr_filter_match);
 }
 
+// Identified an RX corruption at 43684 side with 4360 sta transmitting.
+// The pattern which leads to corruption is as below
+//
+// AMSDU QoS bit in d11header is set but subframne header is missing.
+// LLC SNAP header of AA AA 03 00 00 00 appears at the place of subframe header.
+// WAR at 43684 side to filter out such packets instead of trapping.
+uint32 // Determine whether any filters hit a llc snap DA type [aa aa 03 00 00 00]
+hwa_rxdata_fhr_is_llc_snap_da(uint32 fhr_filter_match)
+{
+	hwa_dev_t *dev;
+	hwa_rxdata_t *rxdata;
+
+	HWA_FTRACE(HWA2a);
+
+	dev = HWA_DEVP(FALSE); // CAUTION: global access without audit
+	rxdata = &dev->rxdata;
+
+	return (rxdata->llc_snap_da_filter & fhr_filter_match);
+}
 // FHR match statistics management
 uint32 // Get the hit statistics for a filter
 hwa_rxdata_fhr_hits_get(uint32 filter_id)
@@ -3982,10 +4026,19 @@ hwa_txstat_reclaim(hwa_dev_t *dev)
 	}
 }
 
+void // Process active txstatus in H2S TxStatus status_ring before fifo sync.
+hwa_txstat_service_txstatus(hwa_dev_t *dev)
+{
+	// Make sure 4a's job is done.
+	hwa_txstat_wait_to_finish(&dev->txstat, 0);
+	(void)hwa_txstat_process(dev, 0, HWA_PROCESS_NOBOUND);
+}
+
 int // Consume all txstatus in H2S txstatus interface
 hwa_txstat_process(struct hwa_dev *dev, uint32 core, bool bound)
 {
 	int ret;
+	uint32 loop_count;
 	uint32 proc_cnt;
 	uint32 elem_ix; // location of next element to read
 	void *txstatus; // MAC generate txstatus blob
@@ -4004,6 +4057,7 @@ hwa_txstat_process(struct hwa_dev *dev, uint32 core, bool bound)
 
 	// Setup locals
 	fatal = FALSE;
+	loop_count = 0;
 	proc_cnt = 0;
 	txstat = &dev->txstat;
 	h2s_ring = &txstat->status_ring[core];
@@ -4014,7 +4068,26 @@ hwa_txstat_process(struct hwa_dev *dev, uint32 core, bool bound)
 	done_handler = &dev->handlers[HWA_TXSTAT_DONE];
 
 	HWA_STATS_EXPR(txstat->wake_cnt[core]++);
-	hwa_ring_cons_get(h2s_ring); // fetch HWA txstatus ring's WR index once
+
+	// CRBCAHWA-592:
+	// SW probably read the value 0x400 for write index when set the depth to 0x400.
+	// Because write index will be updated from 0x3ff to 0x0 through 0x400 in a cycle.
+	// This value is invalid. Driver should read it again to fecth the real one.
+	do {
+		if (loop_count) {
+			HWA_TRACE(("%s: WR index is equal to depth <0x%x>\n",
+				__FUNCTION__, HWA_RING_STATE(h2s_ring)->write));
+			OSL_DELAY(1);
+		}
+
+		hwa_ring_cons_get(h2s_ring); // fetch HWA txstatus ring's WR index
+	} while ((HWA_RING_STATE(h2s_ring)->write == h2s_ring->depth) &&
+		++loop_count != HWA_FSM_IDLE_POLLLOOP);
+	if (loop_count == HWA_FSM_IDLE_POLLLOOP) {
+		HWA_ERROR(("%s: WR index still invalid <0x%x>\n",
+			__FUNCTION__, HWA_RING_STATE(h2s_ring)->write));
+		HWA_ASSERT(0);
+	}
 
 	// Consume all TxStatus received in status_ring, handing each upstream
 	while ((elem_ix = hwa_ring_cons_upd(h2s_ring)) != BCM_RING_EMPTY) {
@@ -4394,9 +4467,6 @@ hwa_wl_reclaim_rx_packets(hwa_dev_t *dev)
 
 	// Setup locals
 	wlc = dev->wlc;
-
-	// Flush rx pktfetch
-	wlc_recvdata_pktfetch_queue_flush(wlc);
 
 	// Flush amsdu deagg
 	wlc_amsdu_flush(wlc->ami);

@@ -58,7 +58,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_chanmgr_api.h 766664 2018-08-09 08:50:20Z $
+ * $Id: phy_chanmgr_api.h 766514 2018-08-04 06:18:03Z $
  */
 
 #ifndef _phy_chanmgr_api_h_

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_utils_reg.c 752567 2018-03-16 13:25:20Z $
+ * $Id: phy_utils_reg.c 766999 2018-08-24 01:14:37Z $
  */
 
 #include <typedefs.h>
@@ -1059,7 +1059,8 @@ phy_utils_read_phytable_ext(phy_info_t *pi, const phytbl_info_t *ptbl_info, uint
 	uint32 *ptbl_32b   = (uint32 *)(uintptr)ptbl_info->tbl_ptr;
 
 	ASSERT((tbl_width == 8) || (tbl_width == 16) ||
-		(tbl_width == 32) || (tbl_width == 48) || (tbl_width == 60) || (tbl_width == 42));
+		(tbl_width == 32) || (tbl_width == 48) || (tbl_width == 60) || (tbl_width == 42) ||
+		(tbl_width == 64));
 
 	phy_utils_write_phyreg(pi, tblId, (uint16) tbl_id);
 	phy_utils_write_phyreg(pi, tblOffset, (uint16) tbl_offset);

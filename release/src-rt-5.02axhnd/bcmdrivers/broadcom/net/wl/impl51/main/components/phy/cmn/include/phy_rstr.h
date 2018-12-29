@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_rstr.h 752074 2018-03-14 19:56:20Z $
+ * $Id: phy_rstr.h 766697 2018-08-10 00:10:49Z $
  */
 
 #ifndef _phy_rstr_h_
@@ -484,6 +484,8 @@ extern const char BCMATTACHDATA(rstr_swctrl_to_bt_in_coex)[];
 extern const char BCMATTACHDATA(rstr_olpc_thresh)[];
 extern const char BCMATTACHDATA(rstr_olpc_thresh2g)[];
 extern const char BCMATTACHDATA(rstr_olpc_thresh5g)[];
+extern const char BCMATTACHDATA(rstr_olpc_thresh2g_srom)[];
+extern const char BCMATTACHDATA(rstr_olpc_thresh5g_srom)[];
 extern const char BCMATTACHDATA(rstr_olpc_tempslope2g)[];
 extern const char BCMATTACHDATA(rstr_olpc_tempslope5g)[];
 extern const char BCMATTACHDATA(rstr_olpc_anchor2g)[];

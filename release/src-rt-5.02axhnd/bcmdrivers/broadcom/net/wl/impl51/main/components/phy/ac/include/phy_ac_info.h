@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_info.h 764810 2018-06-05 01:58:54Z $
+ * $Id: phy_ac_info.h 767415 2018-09-11 00:27:51Z $
  */
 
 #ifndef _phy_ac_info_h_
@@ -464,6 +464,7 @@
 #define ACPHY_TBL_ID_SLNACLIPSTAGETOTGAIN        38
 #define ACPHY_TBL_ID_VASIPREGISTERS              41
 #define ACPHY_TBL_ID_IQLOCAL1                    44
+#define ACPHY_TBL_ID_SVMPTBL                     45
 #define ACPHY_TBL_ID_SVMPTINYTBL                 46
 #define ACPHY_TBL_ID_SMCPMTBL                    47
 #define ACPHY_TBL_ID_SVMPMEMS                    48
@@ -606,8 +607,9 @@
 #define ACPHY_TBL_ID_ADCSAMPCAP                 224
 #define ACPHY_TBL_ID_DACRAWSAMPPLAY             225
 #define ACPHY_TBL_ID_TSSIMEMTBL                 226
-#define ACPHY_TBL_ID_NVNOISESHAPING11AXTBL		227
-#define ACPHY_TBL_ID_NVADJ11AXTBL				228
+#define ACPHY_TBL_ID_NVNOISESHAPING11AXTBL      227
+#define ACPHY_TBL_ID_NVADJ11AXTBL               228
+#define ACPHY_TBL_ID_AXMACPHYIFTBL              229
 
 /* Name conflict, use new AC2PHY tables name */
 #define AC2PHY_TBL_ID_CHANNELSMOOTHING_1x1      36
@@ -763,6 +765,10 @@
 #define ACPHY_TBL_ID_FDSS_SCALEFACTORSDELTATBL(core) \
 	(((core == 0) ? ACPHY_TBL_ID_FDSS_SCALEFACTORSDELTATBL0 : \
 	  ACPHY_TBL_ID_FDSS_SCALEFACTORSDELTATBL1))
+#define ACPHY_TBL_ID_LOFTCOEFFLUTS(core) \
+	(((core == 0) ? ACPHY_TBL_ID_LOFTCOEFFLUTS0 : \
+	((core == 1) ? ACPHY_TBL_ID_LOFTCOEFFLUTS1 : \
+	((core == 2) ? ACPHY_TBL_ID_LOFTCOEFFLUTS2 : ACPHY_TBL_ID_LOFTCOEFFLUTS3))))
 
 #define ACPHY_LNAROUT_BAND_OFFSET(pi, chanspec) \
 	(CHSPEC_IS5G(chanspec) ? 8 : 0)
@@ -2363,7 +2369,7 @@ struct phy_info_acphy
 	/* ************************************************************************************ */
 	uint8 td_sfo_corr_en;
 	bool ul_mac_aided_en;
-	bool ul_mac_aided_timing_en;
+	uint8 ul_mac_aided_timing_en;
 	uint8	tx_pwr_ctrl_status;
 };
 

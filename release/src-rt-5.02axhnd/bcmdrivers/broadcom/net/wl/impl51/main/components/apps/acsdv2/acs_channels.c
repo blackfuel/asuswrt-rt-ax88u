@@ -291,6 +291,7 @@ acs_pick_customer_prioritization(acs_chaninfo_t *c_info, ch_candidate_t *current
 	/* Customer specific selection criteria #2
 	 * Channel Power Preference
 	*/
+#if 0
 	if (c_info->acs_cs_high_pwr_pref) {
 		if (acsd_is_lp_chan(c_info, current->chspec) &&
 			!acsd_is_lp_chan(c_info, candidate->chspec)) {
@@ -302,6 +303,7 @@ acs_pick_customer_prioritization(acs_chaninfo_t *c_info, ch_candidate_t *current
 			return PICK_CURRENT;
 		}
 	}
+#endif
 
 	return PICK_NONE;
 }
@@ -608,6 +610,10 @@ acs_build_candidates(acs_chaninfo_t *c_info, int bw)
 	char *data_buf;
 	data_buf = acsd_malloc(ACS_SM_BUF_LEN);
 
+	int count2 = 0;
+	int k = 0;
+	char *data_buf2 = acsd_malloc(ACS_SM_BUF_LEN);
+
 	if (bw == ACS_BW_160) {
 		input |= WL_CHANSPEC_BW_160;
 	} else if (bw == ACS_BW_8080) {
@@ -645,7 +651,11 @@ acs_build_candidates(acs_chaninfo_t *c_info, int bw)
 #endif /* ACSD_SEGMENT_CHANIM */
 
 	ACS_FREE(c_info->candidate[bw]);
+#if 0
 	c_info->candidate[bw] = (ch_candidate_t*)acsd_malloc(count * sizeof(ch_candidate_t));
+#else
+	c_info->candidate[bw] = (ch_candidate_t*)acsd_malloc(WL_NUMCHANSPECS * sizeof(ch_candidate_t));
+#endif
 	candi = c_info->candidate[bw];
 
 	ACSD_DEBUG("address of candi: %p\n", candi);
@@ -674,8 +684,61 @@ acs_build_candidates(acs_chaninfo_t *c_info, int bw)
 	}
 	c_info->c_count[bw] = count;
 
+	input = 0;
+	if (BAND_5G(rsi->band_type) && bw == ACS_BW_160) {
+		input |= WL_CHANSPEC_BAND_5G;
+		input |= WL_CHANSPEC_BW_80;
+		ret = acs_get_perband_chanspecs(c_info, input, data_buf2, ACS_SM_BUF_LEN);
+
+		if (ret < 0)
+			ACS_FREE(data_buf2);
+		ACS_ERR(ret, "failed to get valid chanspec lists");
+
+		list = (wl_uint32_list_t *)data_buf2;
+		count2 = dtoh32(list->count);
+		if (!count2) {
+			ACSD_ERROR("number of valid chanspec is 0\n");
+			ret = -2;
+			goto cleanup;
+		}
+
+		acs_channel_t chan;
+		for (i = 0; i < count2; i++) {
+			c = (chanspec_t)dtoh32(list->element[i]);
+
+			acs_parse_chanspec(c, &chan);
+			if (chan.control < 149) continue;
+
+			candi[count + k].chspec = c;
+			candi[count + k].valid = TRUE;
+
+			if (acs_is_dfs_chanspec(c_info, candi[count + k].chspec)) {
+				candi[count + k].is_dfs = TRUE;
+				if (!rsi->reg_11h) {
+					/* DFS Channels can be used only if 802.11h is enabled */
+					candi[count + k].valid = FALSE;
+					candi[count + k].reason |= ACS_INVALID_DFS_NO_11H;
+				}
+			} else {
+				candi[count + k].is_dfs = FALSE;
+			}
+
+			/* assign weight based on config */
+			for (j = 0; j < CH_SCORE_MAX; j++) {
+				candi[count + k].chscore[j].weight = c_info->acs_policy.acs_weight[j];
+				ACSD_DEBUG("chanspec: (0x%04x %s) score: %d, weight: %d\n",
+					c, wf_chspec_ntoa(c, chanspecbuf), candi[count + k].chscore[j].score, candi[count + k].chscore[j].weight);
+			}
+
+			k++;
+		}
+
+		c_info->c_count[bw] = count + k;
+	}
+
 cleanup:
 	free(data_buf);
+	free(data_buf2);
 	return ret;
 }
 
@@ -732,7 +795,10 @@ acs_chan_score_bss(ch_candidate_t* candi, acs_chan_bssinfo_t* bss_info, int ncis
 	int i, min, max;
 	int ch;
 	bool ovlp = FALSE;
+#if 0
 	int ovlp_offset = 0;
+#endif
+	bool hit;
 
 	if (CHSPEC_IS2G(candi->chspec) && (!nvram_match("acs_2g_ch_no_ovlp", "1"))) {
 		ovlp = TRUE;
@@ -749,8 +815,13 @@ acs_chan_score_bss(ch_candidate_t* candi, acs_chan_bssinfo_t* bss_info, int ncis
 			/* 25 MHz seperation allows nearby channels to be
 			   avoided.
 			   */
+#if 0
 			min -= CH_20MHZ_APART + CH_5MHZ_APART;
 			max += CH_20MHZ_APART + CH_5MHZ_APART;
+#else
+			min -= CH_20MHZ_APART;
+			max += CH_20MHZ_APART;
+#endif
 		}
 
 		ACSD_DEBUG("ch: %d, min: %d, max: %d\n", ch, min, max);
@@ -758,7 +829,9 @@ acs_chan_score_bss(ch_candidate_t* candi, acs_chan_bssinfo_t* bss_info, int ncis
 				bss_info[i].nCtrl, bss_info[i].nExt20, bss_info[i].nExt40,
 				bss_info[i].nExt80);
 
-		if (ch == min || ch == max) {
+		hit = CHSPEC_IS2G(candi->chspec) ? (ch >= min && ch <= max) : (ch == min || ch == max);
+
+		if (hit) {
 			tmp_score = bss_info[i].nExt20 + bss_info[i].nExt40;
 			if (tmp_score > 0) {
 				if ((!CHSPEC_IS20(candi->chspec)) &&
@@ -771,6 +844,7 @@ acs_chan_score_bss(ch_candidate_t* candi, acs_chan_bssinfo_t* bss_info, int ncis
 					break;
 				}
 			}
+#if 0
 			if (ovlp) {
 				ovlp_offset = ABS(ch - chan.control);
 				if (ovlp_offset == 0) {
@@ -783,7 +857,9 @@ acs_chan_score_bss(ch_candidate_t* candi, acs_chan_bssinfo_t* bss_info, int ncis
 					 */
 					score += bss_info[i].nCtrl;
 				}
-			} else {
+			} else
+#endif
+			{
 				score += bss_info[i].nCtrl;
 			}
 			score += bss_info[i].nExt20 + bss_info[i].nExt40 + bss_info[i].nExt80;
@@ -1018,9 +1094,95 @@ acs_candidate_score_fcs(ch_candidate_t *candi, acs_chaninfo_t* c_info)
 	ACSD_DEBUG("fcs score: %d for chanspec 0x%4x (%s)\n", score, chspec, wf_chspec_ntoa(chspec, chanspecbuf));
 }
 
+#define BAND_5G_NUM		4
+#define TXPWR_POLICY_NUM	3
+#define CHANNEL_5G_BAND_GROUP(c) \
+	(((c) < 52) ? 1 : (((c) < 100) ? 2 : (((c) < 149) ? 3 : 4)))
+
+struct tc {
+	char *prefix;
+	int index;
+};
+
+struct tc tc_list[] = {
+	{ "US", 0 },
+	{ "TW", 0 },
+	{ "AA", 1 },
+	{ "CA", 2 },
+	{ "EU", 3 },
+	{ "JP", 4 },
+	{ "CN", 5 },
+	{ "KR", 6 }
+};
+
+enum {
+	TXPWR_POLICY_POWER = 0,
+	TXPWR_POLICY_DFS,
+	TXPWR_POLICY_BW160M
+};
+
+struct txpwr_policy {
+	double score[BAND_5G_NUM];
+};
+
+//struct txpwr_policy txpwr_policy_all[TC_NUM][TXPWR_POLICY_NUM] = {
+struct txpwr_policy txpwr_policy_all[][TXPWR_POLICY_NUM] = {
+{{{ 20.5, 15.5, 15.5, 22.0 }}, {{ 20, 10, 10, 20 }}, {{ 10, 10, 10, 0 }}},	// US, TW
+{{{ 20.5, 15.5, 15.5, 22.0 }}, {{ 20, 10, 10, 20 }}, {{ 10, 10, 0, 0 }}},	// AA
+{{{ 10.0, 10.0, 17.0, 23.0 }}, {{ 20, 10, 10, 20 }}, {{ 15, 15, 0, 0 }}},	// CA
+{{{ 9.0, 9.0, 16.0, 0.0 }}, {{ 20, 20, 20, 0 }}, {{ 10, 10, 10, 0 }}},		// EU
+{{{ 13.0, 13.0, 15.5, 0.0 }}, {{ 10, 5, 10, 0 }}, {{ 5, 5, 5, 0 }}},		// JP
+{{{ 14.5, 14.5, 0.0, 21.0 }}, {{ 20, 10, 0, 20 }}, {{ 10, 10, 0, 0 }}},		// CN
+{{{ 14.5, 14.5, 17.0, 17.0 }}, {{ 10, 5, 5, 10 }}, {{ 5, 5, 5, 0 }}}		// KR
+};
+
+int get_tc_index(void)
+{
+	static int index = -1;
+	char *prefix;
+	const struct tc *p;
+
+	if (index != -1)
+		return index;
+
+	prefix = nvram_safe_get("territory_code");
+	for (p = &tc_list[0]; p->prefix; ++p) {
+		if (!strncmp(prefix, p->prefix, 2)) {
+			index = p->index;
+			break;
+		}
+	}
+
+	return index;
+}
+
 static void
 acs_candidate_score_txpwr(ch_candidate_t *candi, acs_chaninfo_t* c_info)
 {
+#ifdef RTAX88U
+	bool is_eu = acs_is_country_edcrs_eu(c_info->country.ccode);	/* is in EDCRS_EU */
+	chanspec_t chspec = candi->chspec;
+	acs_channel_t chan;
+	int tc_index = get_tc_index();
+	int ch_5g_band_grp;
+	int power, dfs = 0, bw160m = 0;
+	int is_dfs;
+	int score = 0;
+	char tmp[32], prefix[32];
+
+	if (BAND_5G(c_info->rs_info.band_type) && (tc_index != -1)) {
+		is_dfs = (c_info->unit == 1) ? nvram_get_int("acs_dfs") : nvram_get_int("acs_band3") ;
+		acs_parse_chanspec(chspec, &chan);
+		ch_5g_band_grp = CHANNEL_5G_BAND_GROUP(chan.control);
+		snprintf(prefix, sizeof(prefix), "wl%d_", c_info->unit);
+		power = txpwr_policy_all[tc_index][TXPWR_POLICY_POWER].score[ch_5g_band_grp - 1];
+		if (ch_5g_band_grp == 1 || ch_5g_band_grp == 4 || (is_dfs && !(is_eu && (chan.control > 112))))
+		dfs = txpwr_policy_all[tc_index][TXPWR_POLICY_DFS].score[ch_5g_band_grp - 1];
+		if (nvram_get_int(strcat_r(prefix, "bw_160", tmp)) && ((!is_dfs && (ch_5g_band_grp == 1)) || (is_dfs && (ch_5g_band_grp < 4))))
+		bw160m = txpwr_policy_all[tc_index][TXPWR_POLICY_BW160M].score[ch_5g_band_grp - 1];
+		score = -(power + dfs + bw160m);
+	}
+#else
 	bool is_eu = acs_is_country_edcrs_eu(c_info->country.ccode);	/* is in EDCRS_EU */
 	bool is_hp = !ACS_IS_LOW_POW_CH(wf_chspec_ctlchan(candi->chspec),
 			is_eu);		/* is high power ch */
@@ -1038,6 +1200,7 @@ acs_candidate_score_txpwr(ch_candidate_t *candi, acs_chaninfo_t* c_info)
 		/* order of preference High power (DFS/non), DFS, low power non-DFS channels */
 		score = 2 - (2 * is_hp + is_dfs);
 	}
+#endif
 	candi->chscore[CH_SCORE_TXPWR].score = score;
 	ACSD_INFO(" txpower score is %d chanspec 0x%4x (%s)\n", score, candi->chspec, wf_chspec_ntoa(candi->chspec, chanspecbuf));
 }
@@ -1643,9 +1806,11 @@ acs_invalidate_candidates(acs_chaninfo_t *c_info, ch_candidate_t *candi, int bw)
 
 	bool dfsr_disable = !(acs_dfsr_reentry_type(ACS_DFSR_CTX(c_info)) == DFS_REENTRY_IMMEDIATE);
 	bool hp_chan_present = FALSE;
+#if 0
 	bool non_dfs_present = FALSE;
+#endif
 	chanim_info_t * ch_info = c_info->chanim_info;
-	time_t now = time(NULL);
+	time_t now = uptime();
 	acs_conf_chspec_t *excl_chans;
 	chanspec_t cur_chspec = 0;
 	int tmp_chspec, i, j;
@@ -1664,9 +1829,11 @@ acs_invalidate_candidates(acs_chaninfo_t *c_info, ch_candidate_t *candi, int bw)
 		hp_chan_present = acs_check_for_hp_chan(c_info, bw);
 	}
 
+#if 0
 	if (c_info->acs_start_on_nondfs && BAND_5G(rsi->band_type)) {
 		non_dfs_present = acs_check_for_nondfs_chan(c_info, bw);
 	}
+#endif
 
 	for (i = 0; i < c_info->c_count[bw]; i++) {
 		/* going through the  coex check if needed */
@@ -1802,6 +1969,7 @@ acs_invalidate_candidates(acs_chaninfo_t *c_info, ch_candidate_t *candi, int bw)
 					}
 				}
 
+#if 0
 				if (non_dfs_present && candi[i].is_dfs &&
 						c_info->acs_start_on_nondfs) {
 					candi[i].reason |= ACS_INVALID_DFS;
@@ -1815,7 +1983,7 @@ acs_invalidate_candidates(acs_chaninfo_t *c_info, ch_candidate_t *candi, int bw)
 					 */
 					candi[i].reason |= ACS_INVALID_NONDFS;
 				}
-
+#endif
 			}
 		}
 		candi[i].valid = (candi[i].reason == 0);
@@ -1992,7 +2160,6 @@ acs_set_chspec(acs_chaninfo_t * c_info, bool update_dfs_params, int ch_chng_reas
 	acs_bgdfs_info_t *acs_bgdfs = c_info->acs_bgdfs;
 	wl_chan_change_reason_t reason;
 	reason = (wl_chan_change_reason_t)ch_chng_reason;
-	int unit = -1;
 	char tmp[32], prefix[32];
 
 	if (c_info->txop_channel_select == 0) {
@@ -2057,11 +2224,22 @@ acs_set_chspec(acs_chaninfo_t * c_info, bool update_dfs_params, int ch_chng_reas
 				ACSD_ERROR("set chanspec 0x%4x (%s) failed!\n", chspec, wf_chspec_ntoa(chspec, chanspecbuf));
 			}
 		} else {
-			wl_ioctl(c_info->name, WLC_GET_INSTANCE, &unit, sizeof(unit));
-			snprintf(prefix, sizeof(prefix), "wl%d_", unit);
+			snprintf(prefix, sizeof(prefix), "wl%d_", c_info->unit);
 
-			if (nvram_match(strcat_r(prefix, "mode", tmp), "ap"))
-				wl_ioctl(c_info->name, WLC_DOWN, NULL, 0);
+			if (BAND_5G(c_info->rs_info.band_type) &&
+				nvram_match(strcat_r(prefix, "mode", tmp), "ap") &&
+				nvram_match("location_code", "RU") &&
+				nvram_match("acs_band3", "0")) {
+				int bw, count = 0;
+				for (bw = 0; bw < ACS_BW_MAX; bw++)
+					if (acs_has_valid_candidate(c_info, bw))
+						count++;
+
+				if (count == 0) {
+					ACSD_PRINT("bring down %s for no valid chanspec!\n", c_info->name);
+					wl_ioctl(c_info->name, WLC_DOWN, NULL, 0);
+				}
+			}
 		}
 	}
 }

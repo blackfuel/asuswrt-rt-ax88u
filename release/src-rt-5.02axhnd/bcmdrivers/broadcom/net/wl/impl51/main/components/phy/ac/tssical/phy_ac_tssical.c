@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_tssical.c 760346 2018-05-01 22:38:27Z $
+ * $Id: phy_ac_tssical.c 767605 2018-09-18 16:11:14Z $
  */
 
 #include <phy_cfg.h>
@@ -1641,8 +1641,32 @@ wlc_phy_tssivisible_thresh_acphy(phy_info_t *pi)
 			visi_thresh_qdbm = WL_RATE_DISABLED;
 		}
 #endif	/* (!WLOLPC || WLOLPC_DISABLED) && WLC_TXCAL */
-	}
+	} else if (SROMREV(pi->sh->sromrev) == 13) {
+	/* TSSI visibility thresholds for the Enterprise Wave-2 cards */
+		visi_thresh_qdbm = WL_RATE_DISABLED;
+	} else if (SROMREV(pi->sh->sromrev) >= 18) {
+		/* Support for 11ax chips
+		 * Visibility threshold may be unique for each board.
+		 */
 
+		/* SROM18 includes OLPC thresholds for 2G and 5G, check it first. */
+		visi_thresh_qdbm = CHSPEC_IS2G(pi->radio_chanspec) ?
+			phy_tssical_get_olpc_threshold2g(pi->tssicali) :
+			phy_tssical_get_olpc_threshold5g(pi->tssicali);
+		if (WL_RATE_DISABLED != visi_thresh_qdbm) {
+			/* Convert dBm to qdBm */
+			visi_thresh_qdbm *= WLC_TXPWR_DB_FACTOR;
+			PHY_TXPWR(("WL_EAP: Using srom-ed TSSI thrsh %d qdBm\n",
+				visi_thresh_qdbm));
+		} else {
+			/* Else hard-code default thresholds for each board. */
+			/* set threshold to -128 for BCA prodcut to avoid OLPC */
+			visi_thresh_qdbm = WL_RATE_DISABLED;
+		}
+		PHY_TXPWR(("WL_OLPC: 11ax board 0x%x, TSSI thrsh %d qdBm %s\n",
+			pi->sh->boardtype, visi_thresh_qdbm,
+			(WL_RATE_DISABLED == visi_thresh_qdbm) ? "Disabled" : ""));
+	}
 	else if (ACMAJORREV_36(pi->pubpi->phy_rev)) {
 #if defined(WLC_TXCAL)
 		if (phy_tssical_get_disable_olpc(pi->tssicali) == 1)
@@ -1655,6 +1679,9 @@ wlc_phy_tssivisible_thresh_acphy(phy_info_t *pi)
 		visi_thresh_qdbm = pi->min_txpower * WLC_TXPWR_DB_FACTOR;
 #endif // endif
 	} else {
+		PHY_ERROR(("EAP: %s: no visibility threshold for boardtype"
+			" 0x%x AND rev 0x%x(%d).  Do you need to add it?\n",
+			__FUNCTION__, pi->sh->boardtype, pi->pubpi->phy_rev, pi->pubpi->phy_rev));
 
 		visi_thresh_qdbm = WL_RATE_DISABLED;
 	}
@@ -1729,12 +1756,17 @@ wlc_phy_get_tssisens_min_acphy(phy_type_tssical_ctx_t *ctx, int8 *tssiSensMinPwr
 {
 	phy_ac_tssical_info_t *info = (phy_ac_tssical_info_t *)ctx;
 	phy_info_t *pi = info->pi;
-	tssiSensMinPwr[0] = READ_PHYREGFLD(pi, TxPwrCtrlCore0TSSISensLmt, tssiSensMinPwr);
-	if (PHYCORENUM(pi->pubpi->phy_corenum) > 1) {
+
+	/* These need to be in descending order and fall-thru */
+	switch (PHYCORENUM(pi->pubpi->phy_corenum)) {
+	case 4:
+		tssiSensMinPwr[3] = READ_PHYREGFLD(pi, TxPwrCtrlCore3TSSISensLmt, tssiSensMinPwr);
+	case 3:
+		tssiSensMinPwr[2] = READ_PHYREGFLD(pi, TxPwrCtrlCore2TSSISensLmt, tssiSensMinPwr);
+	case 2:
 		tssiSensMinPwr[1] = READ_PHYREGFLD(pi, TxPwrCtrlCore1TSSISensLmt, tssiSensMinPwr);
-		if (PHYCORENUM(pi->pubpi->phy_corenum) > 2)
-			tssiSensMinPwr[2] = READ_PHYREGFLD(pi, TxPwrCtrlCore2TSSISensLmt,
-				tssiSensMinPwr);
+	default:
+		tssiSensMinPwr[0] = READ_PHYREGFLD(pi, TxPwrCtrlCore0TSSISensLmt, tssiSensMinPwr);
 	}
 }
 

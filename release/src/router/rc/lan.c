@@ -2483,6 +2483,11 @@ void start_lan(void)
 							eval("brctl", "addif", BR_GUEST, ifname);
 						else
 #endif
+#ifdef RTCONFIG_EXTPHY_BCM84880
+						if(nvram_match("x_Setting", "0") && !strcmp(ifname, "eth5"))
+						{}
+						else
+#endif
 							eval("brctl", "addif", lan_ifname, ifname);
 					}
 #ifdef CONFIG_BCMWL5
@@ -3209,6 +3214,10 @@ void hotplug_net(void)
 	char buf[32];
 	int i = 0;
 #endif
+#if defined(RTCONFIG_HND_ROUTER) && defined(RTCONFIG_DPSTA)
+	char *link;
+	bool link_down;
+#endif
 #if 0
 #ifdef RTCONFIG_AMAS
 	int set_cost_res = 0;
@@ -3220,8 +3229,12 @@ void hotplug_net(void)
 	if (!(interface = getenv("INTERFACE")) ||
 	    !(action = getenv("ACTION")))
 		return;
-
+#if defined(RTCONFIG_HND_ROUTER) && defined(RTCONFIG_DPSTA)
+	link = getenv("LINK");
+	_dprintf("hotplug net INTERFACE=%s ACTION=%s LINK=%s\n", interface, action, link);
+#else
 	_dprintf("hotplug net INTERFACE=%s ACTION=%s\n", interface, action);
+#endif
 
 #ifdef LINUX26
 	add_event = !strcmp(action, "add");
@@ -3239,6 +3252,14 @@ void hotplug_net(void)
 	psta_if = wl_wlif_is_psta(interface);
 #else
 	psta_if = 0;
+#endif
+
+#if defined(RTCONFIG_HND_ROUTER) && defined(RTCONFIG_DPSTA)
+	if (dpsta_mode()) {
+		link_down = (link != NULL && !strcmp(link, "down"));
+			if (link_down)
+				system("echo flush > /proc/dpsta_stalist");
+	}
 #endif
 
 	dyn_if = !strncmp(interface, "wds", 3) || psta_if;

@@ -45,7 +45,7 @@
  *
  * <<Broadcom-WL-IPTag/Proprietary:>>
  *
- * $Id: phy_ac_dccal.c 765341 2018-06-28 18:16:56Z $
+ * $Id: phy_ac_dccal.c 767498 2018-09-13 09:48:45Z $
  */
 
 #include <phy_cfg.h>
@@ -1721,23 +1721,25 @@ phy_ax_dccal_digcorr_init(phy_info_t *pi)
 			MOD_PHYREGCE(pi, dccal_control_8,  core, idacc_abort_threshold, 50);
 			MOD_PHYREGCE(pi, dccal_control_8,  core, idacc_acc_cexp, 5);
 		}
-		MOD_PHYREGCE(pi, dccal_control_1,  core, idacc_tia_init_00, 5);
-		MOD_PHYREGCE(pi, dccal_control_1,  core, idacc_tia_init_01, 5);
-		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_02, 5);
-		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_03, 5);
-		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_04, 5);
-		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_05, 5);
-		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_06, 5);
-		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_07, 5);
-		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_08, 5);
-		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_09, 5);
-		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_10, 5);
-		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_11, 5);
-		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_12, 5);
-		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_13, 5);
+		MOD_PHYREGCE(pi, dccal_control_1,  core, idacc_tia_init_00, 6);
+		MOD_PHYREGCE(pi, dccal_control_1,  core, idacc_tia_init_01, 6);
+		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_02, 6);
+		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_03, 6);
+		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_04, 6);
+		MOD_PHYREGCE(pi, dccal_control_2,  core, idacc_tia_init_05, 6);
+		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_06, 6);
+		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_07, 6);
+		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_08, 6);
+		MOD_PHYREGCE(pi, dccal_control_3,  core, idacc_tia_init_09, 6);
+		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_10, 6);
+		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_11, 6);
+		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_12, 6);
+		MOD_PHYREGCE(pi, dccal_control_4,  core, idacc_tia_init_13, 6);
 
 		MOD_PHYREGCE(pi, dccal_control_50, core, tia_casc_idx, 10);
 		MOD_PHYREGCE(pi, dccal_control_50, core, tia_casc_map, 6);
+
+		MOD_PHYREGCE(pi, dccal_control_50, core, biq0_gidx_init, 3);
 
 		MOD_PHYREGCE(pi, dccal_control_14, core, multi_clip_dcc_tia_war, 0);
 
@@ -1802,8 +1804,11 @@ void phy_ax_dccal_digcorr_dcoe(phy_info_t  *pi)
 			MOD_RADIO_REG_20698(pi, RX2G_REG1, core, rx2g_lo_en, 0);
 			MOD_RADIO_REG_20698(pi, RX2G_CFG1_OVR, core, ovr_rx2g_lo_en, 1);
 		} else {
-			MOD_RADIO_REG_20698(pi, RX5G_REG5, core, rx5g_mix_pu, 0);
-			MOD_RADIO_REG_20698(pi, RX5G_CFG1_OVR, core, ovr_rx5g_mix_pu, 1);
+			//MOD_RADIO_REG_20698(pi, RX5G_REG5, core, rx5g_mix_pu, 0);
+			//MOD_RADIO_REG_20698(pi, RX5G_CFG1_OVR, core, ovr_rx5g_mix_pu, 1);
+			MOD_RADIO_REG_20698(pi, LOGEN_CORE_REG0, core, logen_rx_rccr_pu, 0);
+			MOD_RADIO_REG_20698(pi, LOGEN_CORE_OVR0, core,
+				ovr_logen_rx_rccr_pu, 1);
 		}
 		MOD_PHYREGCE(pi, RfCtrlCoreITRCtrl, core, lnaKillSw5GVal, 1);
 		MOD_PHYREGCE(pi, RfCtrlCoreITRCtrl, core, lnaKillSwOvr, 1);
@@ -1826,7 +1831,7 @@ void phy_ax_dccal_digcorr_dcoe(phy_info_t  *pi)
 			MOD_PHYREGCE(pi, dccal_control_13, core, override_dcoe_done, 0);
 		}
 		MOD_PHYREG(pi, RxControl, dbgpktprocReset, 0x1);
-		OSL_DELAY(1);
+		OSL_DELAY(10);
 		MOD_PHYREG(pi, RxControl, dbgpktprocReset, 0x0);
 		OSL_DELAY(dly);
 
@@ -1859,7 +1864,8 @@ void phy_ax_dccal_digcorr_dcoe(phy_info_t  *pi)
 
 	FOREACH_ACTV_CORE(pi, phyrxchain, core) {
 		MOD_RADIO_REG_20698(pi, RX2G_CFG1_OVR, core, ovr_rx2g_lo_en, 0);
-		MOD_RADIO_REG_20698(pi, RX5G_CFG1_OVR, core, ovr_rx5g_mix_pu, 0);
+		//MOD_RADIO_REG_20698(pi, RX5G_CFG1_OVR, core, ovr_rx5g_mix_pu, 0);
+		MOD_RADIO_REG_20698(pi, LOGEN_CORE_OVR0, core, ovr_logen_rx_rccr_pu, 0);
 		MOD_PHYREGCE(pi, RfCtrlCoreITRCtrl, core, lnaKillSwOvr, 0);
 	}
 }
@@ -1905,7 +1911,7 @@ void phy_ax_dccal_digcorr_idacc(phy_info_t  *pi)
 			MOD_PHYREGCE(pi, dccal_control_16, core, override_idac_cal_done, 0);
 		}
 		MOD_PHYREG(pi, RxControl, dbgpktprocReset, 0x1);
-		OSL_DELAY(1);
+		OSL_DELAY(10);
 		MOD_PHYREG(pi, RxControl, dbgpktprocReset, 0x0);
 		OSL_DELAY(dly);
 
